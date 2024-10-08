@@ -31,4 +31,5 @@ class Tool(ABC):
 
 # TODO: Implement a `from_langchain_tool` static method
 # TODO: Add a return_direct field. If True, then when this
-# tool is called, the agent will halt and return the output.
+# tool is called, the agent cannot call additional actions
+# as children. This tool is terminal.

@@ -102,6 +102,7 @@ class OpenAI(object):
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0,
+        n=1,
         tools=None,
         tool_choice=None,
         parallel_tool_calls=False,
@@ -117,6 +118,7 @@ class OpenAI(object):
             "stream": stream,
             "frequency_penalty": frequency_penalty,
             "response_format": response_format,
+            "n": n,
         }
 
         if tools:
@@ -127,6 +129,9 @@ class OpenAI(object):
 
         response = await self.async_client.chat.completions.create(**completion_params)
         if not stream:
-            return response.choices[0].message
+            if n == 1:
+                return response.choices[0].message
+
+            return response.choices
 
         return response

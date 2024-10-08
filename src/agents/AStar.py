@@ -1,7 +1,9 @@
 # Standard library
 import heapq
-from math import inf
+import asyncio
+from math import inf, mean
 from typing import List, Union
+from collections import defaultdict
 
 # Third party
 import json_repair
@@ -11,12 +13,6 @@ from src.llms import OpenAI
 from src.abstract import Tool
 from src.dtos import State, Message
 from src.prompts import EVAL_PROMPT, AGENT_PROMPT
-
-# Hyperparameters:
-# - depth
-# - branching factor
-# - search budget
-# - termination threshold
 
 
 #########
@@ -44,18 +40,7 @@ def assert_valid_threshold(threshold: float):
 ######
 
 
-class TreeActAgent(object):
-    """
-    depth : int
-        Depth
-    b_factor : int
-        Branching factor
-    budget : int
-        Search budget, which determines the maximum size of the search tree
-    threshold : int
-        Termination threshold
-    """
-
+class AStarAgent(object):
     def __init__(
         self,
         tools,
@@ -64,7 +49,7 @@ class TreeActAgent(object):
         prompt=AGENT_PROMPT,
         depth=5,
         b_factor=3,
-        budget=None,  # TODO: Set a default budget
+        budget=15,
         threshold=0.7,
     ):
         # Setup
@@ -74,14 +59,14 @@ class TreeActAgent(object):
         self.prompt = prompt
 
         # Hyperparameters
-        self.depth = depth
-        self.b_factor = b_factor
-        self.budget = budget
-        self.threshold = threshold
+        self.depth = depth  # Search depth
+        self.b_factor = b_factor  # Branching factor
+        self.budget = budget  # Maximum size of the search tree
+        self.threshold = threshold  # Termination threshold
 
         # Token limits
-        self.tool_call_headroom = 1024
-        self.eval_headroom = 512
+        self.tool_call_headroom = 1024 * b_factor  # TODO: Necessary?
+        self.eval_headroom = 256
 
         # Validations
         assert_valid_tools(tools)
@@ -154,6 +139,7 @@ class TreeActAgent(object):
         response = await self.model.run(
             messages,
             max_tokens=self.eval_headroom,
+            n=20,
             response_format={
                 "type": "json_schema",
                 "json_schema": {
@@ -162,35 +148,59 @@ class TreeActAgent(object):
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "score": {
-                                "type": "number",
-                                "description": "A score between 0 and 1 indicating how well the tool-use sequence aligns with the user's instruction.",
-                            },
                             "reason": {
                                 "type": "string",
-                                "description": "A brief explanation of why you gave this score.",
+                                "description": "Your thoughts and reasoning process. Keep it brief and concise.",
+                            },
+                            "is_success": {
+                                "type": "boolean",
+                                "description": "Whether the agent has succeeded in satisfying the user's intent.",
+                            },
+                            "is_right": {
+                                "type": "boolean",
+                                "description": "Whether the agent is on the right track to success.",
                             },
                         },
                     },
                 },
             },
         )
-        response = json_repair.loads(response.content)
-        return response["score"]
+
+        # Calculate score
+        scores = []
+        for choice in response:
+            score = json_repair.loads(choice.message.content)
+            if score["is_success"]:
+                scores.append(1.0)
+            elif score["is_right"]:
+                scores.append(0.5)
+            else:
+                scores.append(0.0)
+
+        return mean(scores)
 
     async def sample_actions(self, state: State) -> List[Message]:
         """
-        Generates plausible next actions to take in a given trajectory. Obtains _b_
-        candidate actions by asking a language model.
+        Generates plausible next actions to take in a given trajectory (state).
+        Obtains *b_factor* candidate actions by asking a language model.
 
-        - For each tool, make a meta-tool with just one parameter: a list of the tool's
-        parameter objects. Prompt it to always generate _b_ parameter objects.
-        - In the system prompt, instruct the model to always generate _b_
-        parallel tool calls.
+        Two approaches here, since we're a function-calling agent and not a
+        regular ReAct agent:
+        1. Rely on enabling parallel tool calls to generate *b_factor* tool calls
+           - Requires specific instructions for this in the system prompt
+           - Not guaranteed to always produce the minimum # of tool calls
+        2. Use the `num_outputs` parameter to control the number of tool calls
+           - Guaranteed to produce the minimum # of tool calls
+           - Downside? Possibly not enough variation between tool calls
+
+        We are using approach #2 for now.
         """
 
-        # num_outputs=max(branching_factor * 2, 20), n completion param
+        # Calculate # of tool calls to generate (minimum of 20)
+        num_tools = len(self.tools)
+        num_outputs = max(self.b_factor * num_tools, 20)
 
+        # Generate tool calls
         system_message = Message.system(self.prompt)
         headroom = (
             self.model.count_message_tokens(system_message) + self.tool_call_headroom
@@ -200,12 +210,32 @@ class TreeActAgent(object):
         response = await self.model.run(
             messages,
             tools=self.get_tool_schemas(),
-            parallel_tool_calls=True,
+            parallel_tool_calls=False,
             tool_choice="required",
             max_tokens=self.tool_call_headroom,
+            n=num_outputs,
+            temperature=1.0,
         )
-        tool_calls = Message.from_openai_message(response)
-        return tool_calls
+
+        # Get the top *b_factor* tool calls
+        tool_counts = defaultdict(lambda: 0)
+        tool_messages = defaultdict(dict)
+        for choice in response:
+            message = Message.from_openai_message(choice.message)
+            tool_call = message.tool_calls[0]
+            tool_call_id = f"{tool_call.name}:{tool_call.function.arguments}"
+
+            tool_counts[tool_call_id] += 1
+            tool_messages[tool_call_id] = message
+
+        # TODO: Sort by tool name as tiebreaker
+        top_tools = sorted(tool_counts.items(), key=lambda item: item[1], reverse=True)
+        messages = [
+            tool_messages[tool_call_id]
+            for tool_call_id, _ in top_tools[: self.b_factor]
+        ]
+
+        return messages
 
     async def execute_action(self, state: State, action: Message) -> State:
         """
@@ -220,7 +250,6 @@ class TreeActAgent(object):
         result = Message.tool(formatted_output, fn_call.id)
 
         # TODO: Store raw output somewhere
-        # TODO: This doesn't handle parallel tool calls
 
         # Update the state
         new_state = state.from_state(state)
@@ -231,11 +260,11 @@ class TreeActAgent(object):
 
     async def run(self, instruction: str) -> State:
         """
-        Performs a best-first tree search for the optimal tool-use trajectory.
+        Performs an A* (best-first) search for the optimal tool-use trajectory.
         """
 
         initial_state = State(instruction)
-        initial_score = self.evaluate(initial_state)
+        initial_score = await self.evaluate(initial_state)
 
         # Max priority queue (negative scores for max behavior)
         frontier = []
@@ -268,12 +297,18 @@ class TreeActAgent(object):
 
             if len(curr_state) < self.depth:
                 # Generate candidates for the next action
-                actions = self.sample_actions(curr_state)
+                actions = await self.sample_actions(curr_state)
 
-                # Execute and evaluate each action
-                for action in actions:
-                    next_state = self.execute_action(curr_state, action)
-                    next_score = self.evaluate(next_state)
-                    heapq.heappush(frontier, (-next_score, next_state))
+                # Execute each action candidate
+                tasks = [self.execute_action(curr_state, action) for action in actions]
+                states = await asyncio.gather(*tasks)
+
+                # Evaluate each resulting state
+                tasks = [self.evaluate(state) for state in states]
+                scores = await asyncio.gather(*tasks)
+
+                # Push the resulting states to the frontier
+                for score, state in zip(scores, states):
+                    heapq.heappush(frontier, (-score, state))
 
         return best_state

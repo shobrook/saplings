@@ -1,44 +1,17 @@
 # TreeAct
 
----
+`TreeAct` lets you build search-enabled agents in just a few lines of code. Simply plug in your tools and `TreeAct` will find the optimal reasoning path using the tree search algorithm of your choice.
 
-Plug-and-play tree search for LLM agents. Implements a variation of A\* to find the optimal tool-use trajectory. You can use `TreeAct` to build search-enabled agents with just a few lines of code.
+- Supports different search algorithms (A\*, MCTS, beam search)
+- Uses OpenAI (or Claude) function calling under the hood
+- Full control over the value function, prompts, etc.
 
----
+<!--Demo-->
 
-`TreeAct` is the easiest way to build tree search into your agents. Simply define your tools and `TreeAct` will search for the optimal tool-use trajectory using the algorithm of your choice (A\*s, MCTS, beam search, etc.).
+**Why add search?**
 
----
+ReAct-style agents don't work well because they're vulnerable to compounding errors. Even a small mistake early in the loop can snowball and ruin the final output. Adding search gives your agent lookahead and backtracking abilities, making it easier to recover from such mistakes. Various papers demonstrate a significant boost in overall task performance compared to traditional techniques like ReAct and Reflexion.
 
-`TreeAct` is the easiest way to build search-enabled agents. Simply define your tools and `TreeAct` will search for the optimal tool-use trajectory using an algorithm of your choice (A\*s, MCTS, beam search, etc.).
-
----
-
-`TreeAct` equips your LLM agent with tree search in just a few lines of code. It uses a variation of A\* to find the optimal tool-use trajectory. Support for MCTS and beam search is also available.
-
----
-
-`TreeAct` lets you equip an LLM agent with tree search in just a few lines of code. Simply plug in your tools and `TreeAct` will search for the optimal tool-use trajectory using a variation of A\*. It also supports MCTS and beam search.
-
----
-
-Equip your LLM agent with tree search in just a few lines of code. Simply plug in your tools and `TreeAct` will search for the optimal tool-use trajectory using a variation of A\*. It also supports MCTS and a fast greedy search.
-
----
-
-Just plug in your tools and you'll have a search-enabled agent. Behind the scenes, it uses a variation of A\* to find the optimal tool-use trajectory. Support for MCTS and beam search is also available.
-
-Plug-and-play tree search for LLM agents. Implements a variation of A\* to find the optimal tool-use trajectory. You can use `TreeAct` to build search-enabled agents with just a few lines of code.
-
-It implements a variation of A\* to find the optimal tool-use trajectory. This is the easiest plug-and-play way to build a search-enabled agent.
-
-Think of it as a plug-and-play way to build search-enabled agents.
-
-Plug-and-play tree search for LLM agents. Build search-enabled agents with just a few lines of code. Implements a variation of A\* to find the optimal tool-use trajectory.
-
-ReAct (chain-of-thought) agents don't work well because they're vulnerable to compounding errors. Even a small mistake early in the loop can snowball and ruin the final output. `TreeAct` gives your agent backtracking abilities, making it easier to recover from such mistakes. Think of it as _tree-of-thought_ prompting for your agent.<!--tree-of-tools--><!--TODO: Allow for different search algorithms-->
-
-<!--TODO: Visualization/animation-->
 <!--Generalization of the method outlined in this paper: https://arxiv.org/pdf/2407.01476-->
 
 ## Quickstart
@@ -49,7 +22,7 @@ Install the library using `pip`:
 $ pip install TreeAct
 ```
 
-To get started building an agent, all you need is to define your tools.
+**Example:**
 
 ```python
 from treeact import TreeActAgent
@@ -71,7 +44,7 @@ Defining a tool in `TreeAct` is similar to defining one in LangChain. Let's walk
 
 #### Step 1: Create a tool class
 
-In `TreeAct`, each tool is a class. It describes a function to the agent and also implements that function. Your tool must inherit from the `Tool` base class and define three instance variables:
+In `TreeAct`, each tool is a class. It describes a function for the model and also implements it. Your tool must inherit from the `Tool` base class and define the following instance variables:
 
 1. `name` (str): Name of the function. Must be unique within the set of tools provided to the agent.
 2. `description` (str): Description of what the function does and when to call it.
@@ -103,7 +76,7 @@ class TemperatureTool(Tool):
 
 #### Step 2: Define a `run` method
 
-After defining the function schema, the next step is to actually implement the function. This logic should live in an asynchronous method called `run`. When the agent calls your tool, `run` is what will execute the tool call. It should have the same parameters you defined in Step 1, as well as `**kwargs`. And it should return the result of the function call. The return type can be anything you want.
+We've defined the function schema. Now we need to actually implement the function. The implementation should live in an asynchronous method called `run`. When the agent calls your tool, `run` is what will execute the tool call. It should have the same arguments as the parameters you defined in the previous step, as well as `**kwargs`. And it should return the result of the function call.
 
 **Example:**
 
@@ -133,9 +106,9 @@ class TemperatureTool(Tool):
       return f"The current temperature is: {output}"
 ```
 
-### Visualizing the
+### Creating your agent
 
-## Advanced usage
+#### Advanced usage
 
 Once you define your tools, you can simply plug them into `TreeAct` to get a functioning agent. But `TreeAct` also gives you control over every component of the agent. You can change the LLM used, define your own evaluator function, change the prompt governing the agent, etc.
 
