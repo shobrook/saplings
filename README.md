@@ -6,7 +6,8 @@
 - Uses OpenAI (or Claude) function calling under the hood
 - Full control over the value function, prompts, etc.
 
-<!--Demo-->
+![Demo](demo.gif)
+_Source: [Tree Search for Language Model Agents (Koh et al.)](https://arxiv.org/abs/2407.01476)_
 
 **Why add search?**
 
