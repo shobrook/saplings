@@ -11,6 +11,53 @@ from src.abstract import Tool
 from src.dtos import Message, ToolCall
 
 
+#########
+# HELPERS
+#########
+
+
+def clean_completion_params(
+    messages,
+    model="gpt-4o",
+    stream=False,
+    max_tokens=768,
+    temperature=0.7,
+    top_p=1,
+    frequency_penalty=0,
+    presence_penalty=0,
+    n=1,
+    tools=None,
+    tool_choice=None,
+    parallel_tool_calls=False,
+    response_format={"type": "text"},
+):
+    completion_params = {
+        "model": model,
+        "messages": [m.to_openai_message() for m in messages],
+        "temperature": temperature,
+        "top_p": top_p,
+        "presence_penalty": presence_penalty,
+        "max_tokens": max_tokens,
+        "stream": stream,
+        "frequency_penalty": frequency_penalty,
+        "response_format": response_format,
+        "n": n,
+    }
+
+    if tools:
+        completion_params["tools"] = tools
+        completion_params["tool_choice"] = tool_choice
+        completion_params["parallel_tool_calls"] = parallel_tool_calls
+        del completion_params["response_format"]
+
+    return completion_params
+
+
+######
+# MAIN
+######
+
+
 class OpenAI(object):
     CONTEXT_WINDOWS = {
         "gpt-3.5-turbo-1106": 16385,
@@ -92,7 +139,7 @@ class OpenAI(object):
         num_tokens += 12
         return num_tokens
 
-    async def run(
+    def run(
         self,
         messages,
         model="gpt-4o",
@@ -108,24 +155,62 @@ class OpenAI(object):
         parallel_tool_calls=False,
         response_format={"type": "text"},
     ):
-        completion_params = {
-            "model": model,
-            "messages": [m.to_openai_message() for m in messages],
-            "temperature": temperature,
-            "top_p": top_p,
-            "presence_penalty": presence_penalty,
-            "max_tokens": max_tokens,
-            "stream": stream,
-            "frequency_penalty": frequency_penalty,
-            "response_format": response_format,
-            "n": n,
-        }
+        completion_params = clean_completion_params(
+            messages,
+            model,
+            stream,
+            max_tokens,
+            temperature,
+            top_p,
+            frequency_penalty,
+            presence_penalty,
+            n,
+            tools,
+            tool_choice,
+            parallel_tool_calls,
+            response_format,
+        )
 
-        if tools:
-            completion_params["tools"] = tools
-            completion_params["tool_choice"] = tool_choice
-            completion_params["parallel_tool_calls"] = parallel_tool_calls
-            del completion_params["response_format"]
+        response = self.client.chat.completions.create(**completion_params)
+        if not stream:
+            if n == 1:
+                return response.choices[0].message
+
+            return response.choices
+
+        return response
+
+    async def arun(
+        self,
+        messages,
+        model="gpt-4o",
+        stream=False,
+        max_tokens=768,
+        temperature=0.7,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        n=1,
+        tools=None,
+        tool_choice=None,
+        parallel_tool_calls=False,
+        response_format={"type": "text"},
+    ):
+        completion_params = clean_completion_params(
+            messages,
+            model,
+            stream,
+            max_tokens,
+            temperature,
+            top_p,
+            frequency_penalty,
+            presence_penalty,
+            n,
+            tools,
+            tool_choice,
+            parallel_tool_calls,
+            response_format,
+        )
 
         response = await self.async_client.chat.completions.create(**completion_params)
         if not stream:
