@@ -1,18 +1,27 @@
 # TreeAct
 
-`TreeAct` lets you build search-enabled agents in just a few lines of code. Simply plug in your tools and `TreeAct` will find the optimal reasoning path using the tree search algorithm of your choice.
+**TreeAct is a lightweight framework for building search-enabled agents.** 
 
-- Supports different search algorithms (A\*, greedy BFS)
-  - MCTS coming next week
-- Uses OpenAI (or Claude) function calling under the hood
-- Full control over the value function, prompts, etc.
+By incorporating tree search, an agent can look multiple steps ahead before committing to a particular tool-use trajectory. <!--Think of it as tree-of-thoughts meets ReAct-->This makes mistakes far more avoidable and boosts overall task performance –– especially on complex reasoning tasks, like generating code or navigating a website.
 
-![Demo](demo.gif)
+TreeAct is the easiest way to add search to your agent. It's plug-and-play and takes just a couple lines of code to get started.
+
+- Supports different search algorithms: **A\*, greedy BFS, and Monte Carlo Tree Search (MCTS)**
+- Uses OpenAI (or Anthropic) function calling under the hood
+- Full control over prompts, value functions, etc.
+- Doesn't use LangChain
+
+<div align="left">
+   <img src="./demo.gif" width="85%">
+</div>
+
 _Source: [Tree Search for Language Model Agents (Koh et al.)](https://arxiv.org/abs/2407.01476)_
 
 **Why add search?**
 
-ReAct-style agents don't work well because they're vulnerable to compounding errors. Even a small mistake early in the loop can snowball and ruin the final output. Adding search gives your agent lookahead and backtracking abilities, making it easier to recover from such mistakes. You should expect a boost in overall task performance compared to traditional techniques like ReAct and Reflexion.
+Chain-of-thought/ReAct-style agents don't work well because they're vulnerable to compounding errors. Even a small mistake early in the loop can snowball and ruin the final output. Adding tree search gives your agent lookahead and backtracking abilities, making it easier to recover from such mistakes. It's probably the easiest way to significantly boost the performance of your agent.
+
+<!--Tree-of-thoughts meets ReAct-->
 
 ## Installation
 
