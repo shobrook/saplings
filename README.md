@@ -29,6 +29,8 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
 
 <!--Tree-of-thoughts meets ReAct-->
 
+<<<<<<< HEAD
+
 ---
 
 - [Installation](#installation)
@@ -44,7 +46,8 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
   - [Asynchronous search](#asynchronous-search)
   - [Streaming](#streaming)
   - [Different tool types](#different-tool-types)
-- [Roadmap](#roadmap)
+- # [Roadmap](#roadmap)
+  > > > > > > > a0c250306ee50960c4ed62cdda45858ef0579bbc
 
 ## Installation
 
