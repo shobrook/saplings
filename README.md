@@ -1,4 +1,10 @@
-# TreeAct
+<div align="center">
+   <img alt="TreeAct" src="./treeact.png" width="308">
+</div>
+
+<div align="center">
+   <h1>TreeAct</h1>
+</div>
 
 **TreeAct is a lightweight framework for building search-enabled agents.** 
 
