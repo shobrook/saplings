@@ -1,7 +1,7 @@
 # Standard library
 import math
 from collections import deque
-from typing import List, Optional
+from typing import Generator, List, Optional
 
 # Local
 from src.dtos.Message import Message
@@ -18,27 +18,33 @@ class Node(object):
         self.messages = messages  # Tool calls + responses
         self.parent = parent
         self.children = []
-
-        self.value = 0
-        self.visits = 0
         self.depth = parent.depth + 1 if parent else 1
+        self.visits = 0
+        self._value = 0
+        self.is_solved = False
         self.set_evaluation(evaluation)
 
-    # @property
-    # def best_child_score(self) -> Optional["Node"]:
-    #     """
-    #     Return the child with the highest value.
-    #     """
+    @property
+    def score(self) -> float:
+        """
+        Returns the self-evaluation score of this node (float between 0 and 1).
+        """
 
-    #     if not self.children:
-    #         return None
+        return self.evaluation.score if self.evaluation else 0
 
-    #     return max(self.children, key=lambda child: int(child.is_solved) * child.value)
+    @property
+    def value(self) -> float:
+        """
+        Returns the value of this node. For A* and BFS, this is equivalent to self.score.
+        For MCTS, this is the score modified by backpropagation.
+        """
+
+        return self._value
 
     @property
     def height(self) -> int:
         """
-        Check for how far we've rolled out the tree.
+        Returns the height of the tree (i.e. # of levels) rooted at this node.
         """
 
         if self.children:
@@ -47,27 +53,20 @@ class Node(object):
         return 1
 
     @property
-    def normalized_score(self) -> float:
-        return self.evaluation.normalized_score if self.evaluation else 0
-
-    @property
     def is_leaf(self) -> bool:
+        """
+        Returns whether this node is a leaf node.
+        """
+
         return not self.children
 
-    def _mark_tree_as_solved(self):
-        if not self.is_solved:
-            return
+    def set_evaluation(self, evaluation: Optional[Evaluation]):
+        # NOTE: We only need this method because we create nodes before they're
+        # evaluated. This is just for convenience and can be confusing. Should
+        # eventually refactor this.
 
-        parent = self.parent
-        while parent:
-            parent.is_solved = True
-            parent = parent.parent
-
-    def set_evaluation(self, evaluation: Evaluation):
         self.evaluation = evaluation
-        self.is_solved = evaluation.is_solved
-        self._mark_tree_as_solved()
-        self.backpropagate(evaluation.normalized_score)
+        self.value = evaluation.score if evaluation else 0
 
     def get_messages(self, include_evals: bool = False) -> List[Message]:
         """
@@ -98,7 +97,26 @@ class Node(object):
     def add_children(self, children: List["Node"]):
         self.children.extend(children)
 
-    def bfs(self):
+    def get_best_child(self) -> Optional["Node"]:
+        if not self.children:
+            return None
+
+        return max(self.children, key=lambda child: child.value)
+
+    def get_leaf_nodes(self) -> Generator["Node", None, None]:
+        """
+        Get all the leaf nodes rooted at this node.
+        """
+
+        nodes = deque([self])
+        while nodes:
+            node = nodes.popleft()
+            if node.is_leaf:
+                yield node
+            else:
+                nodes.extend(node.children)
+
+    def bfs(self) -> Generator["Node", None, None]:
         nodes = deque()
         nodes.append(self)
         while nodes:
@@ -118,24 +136,29 @@ class Node(object):
         if self.visits == 0:
             return self.value
 
-        # TODO: Should we divide by self.visits here?
+        # TODO: Double-check that division by self.visits is correct here
         exploitation_term = self.value / self.visits
         exploration_term = math.sqrt(math.log(self.parent.visits) / self.visits)
         return exploitation_term + exploration_weight * exploration_term
 
+    def mark_as_solved(self):
+        """
+        Marks this node as solved and then marks the whole tree
+        as solved.
+        """
+
+        node = self
+        while node:
+            node.is_solved = True
+            node = node.parent
+
     def backpropagate(self, reward: float):
         """
-        Updates the score of this node and its parents.
+        Updates the value of this node and its parents.
         """
 
         reward = node.value
         node = self
-        while node:
-            node.visits += 1
-            node.value = (node.value * (node.visits - 1) + reward) / node.visits
-            node = node.parent
-
-            # TODO: This might be the correct way to backpropagate the score
-            # if node.parent:
-            #     node.visits += node.parent.visits
-            #     node.value = (node.parent.value * node.parent.visits + reward) / node.visits
+        while node and node.parent:
+            node.visits += node.parent.visits
+            node.value = (node.parent.value * node.parent.visits + reward) / node.visits

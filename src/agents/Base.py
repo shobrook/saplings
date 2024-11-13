@@ -1,4 +1,5 @@
 # Standard library
+import asyncio
 from collections import defaultdict
 from typing import List, Optional
 
@@ -16,36 +17,24 @@ class BaseAgent(object):
         model: Optional[Model] = None,
         evaluator: Optional[any] = None,
         prompt: str = AGENT_PROMPT,
-        tool_choice: str = "required",  # or "optional"
         b_factor: int = 3,
+        max_depth: int = 5,
+        threshold: float = 0.7,
+        tool_choice: str = "required",  # or "optional"
     ):
         # Setup
         self.tools = tools
         self.model = model if model else OpenAI()
         self.evaluator = evaluator
-        self.prompt = prompt
-        self.tool_choice = tool_choice
+        self.prompt = prompt  # Governs tool calls
         self.b_factor = b_factor  # Branching factor
+        self.max_depth = max_depth
+        self.threshold = threshold  # Solution threshold
+        self.tool_choice = tool_choice
 
-        # Token limits (TODO: Should these even exist?)
-        self.tool_call_headroom = 1024
-        self.eval_headroom = 512
-
-    def agent_has_output_tools(self) -> bool:
-        """
-        Checks if the agent has any tools that can generate a response, or if tool use
-        is optional and the model can generate a response. If so, then it's possible
-        for search nodes to be terminal without being solutions.
-        """
-
-        for tool in self.tools:
-            if tool.is_terminal:
-                return True
-
-        if self.tool_choice == "optional":
-            return True
-
-        return False
+        # Token limits (allow us to do automatic token budgeting)
+        self.tool_call_headroom = 2048
+        self.eval_headroom = 1024
 
     def is_output_node(self, node: Node) -> bool:
         """
@@ -66,24 +55,74 @@ class BaseAgent(object):
 
         return False
 
+    def is_terminal_node(self, node: Node) -> bool:
+        if self.is_solution_node(node):
+            return True
+
+        if self.is_output_node(node):
+            return True
+
+        if node.depth >= self.max_depth:
+            return True
+
+        return False
+
+    def is_solution_node(self, node: Node) -> bool:
+        # NOTE: If the agent *can* generate an output, then even if a
+        # score is above the threshold, we do not consider it a solution
+        # unless the node is an output node.
+
+        if node.score >= self.threshold:
+            if not self.can_generate_output():
+                return True
+
+            if self.is_output_node(node):
+                return True
+
+        return False
+
+    def can_generate_output(self) -> bool:
+        """
+        Checks if the agent can generate a direct output for the user. This means it
+        either has a tool marked as `is_output` or it has a tool choice of `optional`,
+        which means the model can choose to generate a response.
+        """
+
+        for tool in self.tools:
+            if tool.is_terminal:
+                return True
+
+        if self.tool_choice == "optional":
+            return True
+
+        return False
+
     def get_best_node(self, root: Node) -> Node:
         """
         Gets the best solution from the search tree.
 
-        1. If agent has output tools, then we only consider output nodes (e.g. responses).
-        2. If agent has no output tools, then we consider all leaf nodes.
+        If a search terminated before a solution node was found,
+        this will return the node with the highest score.
+
+        If an agent can generate an output, we'll prioritize output nodes.
+        If not, we consider all leaf nodes.
         """
 
-        best_score, best_node = 0, root
+        best_score, best_output_score = 0, 0
+        best_node, best_output_node = root, None
         for node in root.bfs():
-            if self.agent_has_output_tools():
-                if not self.is_output_node(node):
-                    continue
-            elif not node.is_leaf:
+            if not node.is_leaf:
                 continue
 
-            if node.normalized_score > best_score:
-                best_score, best_node = node.normalized_score, node
+            if self.is_output_node(node):
+                if node.score >= best_output_score:
+                    best_output_score, best_output_node = node.score, node
+
+            if node.score >= best_score:
+                best_score, best_node = node.score, node
+
+        if best_output_node:
+            return best_output_node
 
         return best_node
 
@@ -105,7 +144,7 @@ class BaseAgent(object):
 
         raise ValueError(f"Tool with name '{name}' not found.")
 
-    def get_trajectory(self, node: Node, headroom: int) -> List[Message]:
+    def get_trimmed_trajectory(self, node: Node, headroom: int) -> List[Message]:
         """
         Gets the search branch the node belongs to. Trims + drops messages to
         fit within the token headroom.
@@ -140,59 +179,6 @@ class BaseAgent(object):
 
         return trimmed_messages
 
-    async def evaluate(self, node: Node) -> Node:
-        """
-        Evaluates a node in the search tree. If a custom evaluator is not provided,
-        the LLM self-evaluates the node.
-        """
-
-        # Use user-provided evaluator
-        if self.evaluator:
-            evaluation = self.evaluator(node)
-            node.set_evaluation(evaluation)
-            return node
-
-        # TODO: If node.is_leaf(), should we only evaluate the messages in that node?
-        # Or evaluate the whole trajectory?
-
-        # Use default evaluator
-        system_message = Message.system(EVAL_PROMPT)
-        headroom = self.model.count_message_tokens(system_message) + self.eval_headroom
-        messages = [system_message] + self.get_trajectory(node, headroom)
-        response = await self.model.arun(
-            messages,
-            max_tokens=self.eval_headroom,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "evaluation",
-                    "strict": True,
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "reasoning": {
-                                "type": "string",
-                                "description": "Your thoughts and reasoning process. Keep it brief and concise.",
-                            },
-                            "score": {
-                                "type": "number",
-                                "description": "Score from 0-10 on the quality of the trajectory. A 10 indicates that the agent has completely succeeded in satisfying the user's intent.",
-                            },
-                            # "is_solved": {
-                            #     "type": "boolean",
-                            #     "description": "Whether the agent has succeeded in satisfying the user's intent.",
-                            # },
-                        },
-                    },
-                },
-            },
-        )
-        response = Message.from_response(response)
-        evaluation = Evaluation.from_message(response)
-        node.set_evaluation(evaluation)
-
-        return node
-
     async def generate_candidates(
         self, node: Node, n: Optional[int] = None
     ) -> List[Message]:
@@ -212,7 +198,7 @@ class BaseAgent(object):
         headroom = (
             self.model.count_message_tokens(system_message) + self.tool_call_headroom
         )
-        messages = [system_message] + self.get_trajectory(node, headroom)
+        messages = [system_message] + self.get_trimmed_trajectory(node, headroom)
         response = await self.model.arun(
             messages,
             tools=self.get_tool_schemas(),
@@ -251,3 +237,81 @@ class BaseAgent(object):
         # TODO: Store raw output somewhere
 
         return tool_response
+
+    async def evaluate(self, node: Node) -> Node:
+        """
+        Evaluates a node in the search tree. If a custom evaluator is not provided,
+        the LLM self-evaluates the node.
+        """
+
+        # Use user-provided evaluator
+        if self.evaluator:
+            evaluation = self.evaluator(node)
+            node.set_evaluation(evaluation)
+            return node
+
+        # TODO: If self.is_output_node(node), should we only evaluate the message(s) in that node?
+        # Or evaluate the whole trajectory? For now, we are evaluating the whole trajectory.
+
+        # Use default evaluator
+        system_message = Message.system(EVAL_PROMPT)
+        headroom = self.model.count_message_tokens(system_message) + self.eval_headroom
+        messages = [system_message] + self.get_trimmed_trajectory(node, headroom)
+        response = await self.model.arun(
+            messages,
+            max_tokens=self.eval_headroom,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "evaluation",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "reasoning": {
+                                "type": "string",
+                                "description": "Your thoughts and reasoning process. Keep it brief and concise.",
+                            },
+                            "score": {
+                                "type": "number",
+                                "description": "Score from 0-10 on the quality of the trajectory. A 10 indicates that the agent has completely succeeded in satisfying the user's intent.",
+                            },
+                        },
+                    },
+                },
+            },
+        )
+        response = Message.from_response(response)
+        evaluation = Evaluation.from_message(response)
+        node.set_evaluation(evaluation)
+
+        return node
+
+    async def expand(self, node: Node) -> List[Node]:
+        if self.is_terminal_node(node):
+            return []
+
+        # Generate candidate next tool calls, execute each
+        # num_candidates = max(self.b_factor * len(self.tools), 20)
+        tool_calls = await self.generate_candidates(node)  # , num_candidates
+        tasks = [self.execute_tool_call(tool_call) for tool_call in tool_calls]
+        tool_responses = await asyncio.gather(*tasks)
+
+        # Create child nodes
+        children = [
+            Node([call, response], parent=node)
+            for call, response in zip(tool_calls, tool_responses)
+        ]
+
+        # TODO: Double-check that order is preserved before zipping
+
+        # Evaluate each child
+        tasks = [self.evaluate(child) for child in children]
+        await asyncio.gather(*tasks)
+
+        # TODO: Add a self-consistency term
+
+        # Grow the tree
+        node.add_children(children)
+
+        return children
