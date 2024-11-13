@@ -1,11 +1,11 @@
 # Local
 from src.agents.Base import BaseAgent
-from src.dtos import State
+from src.dtos import Node
 
 
-class GreedyAgent(BaseAgent):
+class BFSAgent(BaseAgent):
     def __init__(**kwargs):
         super().__init__(**kwargs)
 
-    async def run(self, instruction: str) -> State:
+    async def run(self, prompt: str) -> Node:
         pass

@@ -1,100 +1,127 @@
 # Standard library
-import heapq
-import asyncio
-from math import inf, mean
-from typing import List, Union
 from collections import defaultdict
-
-# Third party
-import json_repair
+from typing import List, Optional
 
 # Local
+from src.abstract import Model, Tool
+from src.dtos import Evaluation, Message, Node
 from src.llms import OpenAI
-from src.abstract import Tool
-from src.dtos import State, Message
-from src.prompts import EVAL_PROMPT, AGENT_PROMPT
-
-
-#########
-# HELPERS
-#########
-
-
-def assert_valid_tools(tools: List[Tool]):
-    names = set()
-    for tool in tools:
-        assert tool.name not in names, f"Duplicate tool name: {tool.name}"
-        names.add(tool.name)
-
-        assert isinstance(
-            tool, Tool
-        ), f"Tool must be an instance of treeact.abstract.Tool"
-
-
-def assert_valid_threshold(threshold: float):
-    assert 0 <= threshold <= 1, "Threshold must be between 0 and 1"
-
-
-######
-# MAIN
-######
+from src.prompts import AGENT_PROMPT, EVAL_PROMPT
 
 
 class BaseAgent(object):
     def __init__(
         self,
-        tools,
-        model=None,
-        evaluator=None,
-        prompt=AGENT_PROMPT,
-        depth=5,
-        budget=15,
-        b_factor=3,
-        threshold=0.7,
+        tools: List[Tool],
+        model: Optional[Model] = None,
+        evaluator: Optional[any] = None,
+        prompt: str = AGENT_PROMPT,
+        tool_choice: str = "required",  # or "optional"
+        b_factor: int = 3,
     ):
         # Setup
         self.tools = tools
         self.model = model if model else OpenAI()
         self.evaluator = evaluator
         self.prompt = prompt
-
-        # Hyperparameters
-        self.depth = depth  # Search depth
+        self.tool_choice = tool_choice
         self.b_factor = b_factor  # Branching factor
-        self.budget = budget  # Maximum size of the search tree
-        self.threshold = threshold  # Termination threshold
 
-        # Token limits
-        self.tool_call_headroom = 1024 * b_factor  # TODO: Necessary?
-        self.eval_headroom = 256
+        # Token limits (TODO: Should these even exist?)
+        self.tool_call_headroom = 1024
+        self.eval_headroom = 512
 
-        # Validations
-        assert_valid_tools(tools)
-        assert_valid_threshold(threshold)
+    def agent_has_output_tools(self) -> bool:
+        """
+        Checks if the agent has any tools that can generate a response, or if tool use
+        is optional and the model can generate a response. If so, then it's possible
+        for search nodes to be terminal without being solutions.
+        """
 
-    def get_tool_schemas(self):
+        for tool in self.tools:
+            if tool.is_terminal:
+                return True
+
+        if self.tool_choice == "optional":
+            return True
+
+        return False
+
+    def is_output_node(self, node: Node) -> bool:
+        """
+        Checks if a node represents a final response to the user's prompt.
+        """
+
+        for message in node.messages:
+            if message.role != "assistant":
+                continue
+
+            if not message.tool_calls:  # and len(node.messages) == 1
+                return True
+
+            for tool_call in message.tool_calls:
+                tool = self.get_tool_by_name(tool_call.name)
+                if tool.is_terminal:
+                    return True
+
+        return False
+
+    def get_best_node(self, root: Node) -> Node:
+        """
+        Gets the best solution from the search tree.
+
+        1. If agent has output tools, then we only consider output nodes (e.g. responses).
+        2. If agent has no output tools, then we consider all leaf nodes.
+        """
+
+        best_score, best_node = 0, root
+        for node in root.bfs():
+            if self.agent_has_output_tools():
+                if not self.is_output_node(node):
+                    continue
+            elif not node.is_leaf:
+                continue
+
+            if node.normalized_score > best_score:
+                best_score, best_node = node.normalized_score, node
+
+        return best_node
+
+    def get_tool_schemas(self) -> List[dict]:
+        """
+        Used to prepare tools for the LLM.
+        """
+
         return [tool.get_schema() for tool in self.tools]
 
-    def get_tool_by_name(self, name: str) -> Union[Tool, None]:
+    def get_tool_by_name(self, name: str) -> Tool:
+        """
+        Gets a tool object by its name.
+        """
+
         for tool in self.tools:
             if tool.name == name:
                 return tool
 
-        return None
+        raise ValueError(f"Tool with name '{name}' not found.")
 
-    def get_trimmed_messages(self, state: State, headroom: int = 1024):
+    def get_trajectory(self, node: Node, headroom: int) -> List[Message]:
         """
-        Converts the state into a list of messages. If there are too many tokens
-        in the messages, the oldest messages are trimmed until the token limit
-        is no longer breached.
+        Gets the search branch the node belongs to. Trims + drops messages to
+        fit within the token headroom.
         """
 
+        # Get *all* messages in the search branch
+        messages = node.get_trajectory(include_evals=False)
+        input_message = messages[0]
+
+        # Trim messages to fit within the token headroom
         headroom = self.model.get_context_window() - headroom
-        token_count = self.model.count_message_tokens(state.instruction)
+        token_count = self.model.count_message_tokens(input_message)
         token_count += sum(self.model.count_tool_tokens(tool) for tool in self.tools)
 
-        trimmed_messages = [state.instruction]
-        for message in reversed(state):
+        trimmed_messages = [input_message]
+        for message in reversed(messages):
             num_tokens = self.model.count_message_tokens(message)
             if token_count + num_tokens > headroom:
                 if message.role == "tool":
@@ -113,33 +140,28 @@ class BaseAgent(object):
 
         return trimmed_messages
 
-    async def evaluate(self, state: State) -> float:
+    async def evaluate(self, node: Node) -> Node:
         """
-        Evaluates the current branch of the search tree, i.e. a tool-use trajectory.
-        The evaluation tells the agent how well the trajectory aligns with the given
-        instruction.
-
-        Returns a value between 0 and 1, where 1 is the best possible trajectory
-        (i.e. the goal state).
+        Evaluates a node in the search tree. If a custom evaluator is not provided,
+        the LLM self-evaluates the node.
         """
 
-        # Initial state always has a score of 0
-        if state.is_empty():
-            return 0
-
-        # User has provided a custom evaluator
+        # Use user-provided evaluator
         if self.evaluator:
-            return self.evaluator(state)
+            evaluation = self.evaluator(node)
+            node.set_evaluation(evaluation)
+            return node
+
+        # TODO: If node.is_leaf(), should we only evaluate the messages in that node?
+        # Or evaluate the whole trajectory?
 
         # Use default evaluator
         system_message = Message.system(EVAL_PROMPT)
         headroom = self.model.count_message_tokens(system_message) + self.eval_headroom
-        messages = self.get_trimmed_messages(state, headroom)
-        messages += [system_message]
+        messages = [system_message] + self.get_trajectory(node, headroom)
         response = await self.model.arun(
             messages,
             max_tokens=self.eval_headroom,
-            n=20,
             response_format={
                 "type": "json_schema",
                 "json_schema": {
@@ -148,112 +170,84 @@ class BaseAgent(object):
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "reason": {
+                            "reasoning": {
                                 "type": "string",
                                 "description": "Your thoughts and reasoning process. Keep it brief and concise.",
                             },
-                            "is_success": {
-                                "type": "boolean",
-                                "description": "Whether the agent has succeeded in satisfying the user's intent.",
+                            "score": {
+                                "type": "number",
+                                "description": "Score from 0-10 on the quality of the trajectory. A 10 indicates that the agent has completely succeeded in satisfying the user's intent.",
                             },
-                            "is_right": {
-                                "type": "boolean",
-                                "description": "Whether the agent is on the right track to success.",
-                            },
+                            # "is_solved": {
+                            #     "type": "boolean",
+                            #     "description": "Whether the agent has succeeded in satisfying the user's intent.",
+                            # },
                         },
                     },
                 },
             },
         )
+        response = Message.from_response(response)
+        evaluation = Evaluation.from_message(response)
+        node.set_evaluation(evaluation)
 
-        # Calculate score
-        scores = []
-        for choice in response:
-            score = json_repair.loads(choice.message.content)
-            if score["is_success"]:
-                scores.append(1.0)
-            elif score["is_right"]:
-                scores.append(0.5)
-            else:
-                scores.append(0.0)
+        return node
 
-        return mean(scores)
-
-    async def sample_actions(self, state: State) -> List[Message]:
+    async def generate_candidates(
+        self, node: Node, n: Optional[int] = None
+    ) -> List[Message]:
         """
-        Generates plausible next actions to take in a given trajectory (state).
-        Obtains *b_factor* candidate actions by asking a language model.
+        Generates plausible next actions to take in a given trajectory.
+        Obtains `b_factor` candidate actions by using the `num_outputs`
+        parameter to control the number of tool calls made by the LLM.
 
-        Two approaches here, since we're a function-calling agent and not a
-        regular ReAct agent:
-        1. Rely on enabling parallel tool calls to generate *b_factor* tool calls
-           - Requires specific instructions for this in the system prompt
-           - Not guaranteed to always produce the minimum # of tool calls
-        2. Use the `num_outputs` parameter to control the number of tool calls
-           - Guaranteed to produce the minimum # of tool calls
-           - Downside? Possibly not enough variation between tool calls
+        If `num_outputs` > `b_factor`, we sort the tool calls by frequency
+        (as in # of duplicates) and return the top `b_factor` tool calls.
 
-        We are using approach #2 for now.
+        Candidates are always unique/de-duplicated.
         """
-
-        # Calculate # of tool calls to generate (minimum of 20)
-        num_tools = len(self.tools)
-        num_outputs = max(self.b_factor * num_tools, 20)
 
         # Generate tool calls
         system_message = Message.system(self.prompt)
         headroom = (
             self.model.count_message_tokens(system_message) + self.tool_call_headroom
         )
-        messages = self.get_trimmed_messages(state, headroom)
-        messages += [system_message]
+        messages = [system_message] + self.get_trajectory(node, headroom)
         response = await self.model.arun(
             messages,
             tools=self.get_tool_schemas(),
             parallel_tool_calls=False,
-            tool_choice="required",
+            tool_choice=self.tool_choice,
             max_tokens=self.tool_call_headroom,
-            n=num_outputs,
+            n=n if n else self.b_factor,
             temperature=1.0,
         )
+        candidates = [Message.from_response(choice) for choice in response]
 
-        # Get the top *b_factor* tool calls
+        # TODO: Handle non-tool call candidates
+
+        # Deduplicate tool calls and sort by frequency
         tool_counts = defaultdict(lambda: 0)
         tool_messages = defaultdict(dict)
-        for choice in response:
-            message = Message.from_openai_message(choice.message)
+        for message in candidates:
             tool_call = message.tool_calls[0]
-            tool_call_id = f"{tool_call.name}:{tool_call.function.arguments}"
-
-            tool_counts[tool_call_id] += 1
-            tool_messages[tool_call_id] = message
+            tool_counts[hash(tool_call)] += 1
+            tool_messages[hash(tool_call)] = message
 
         # TODO: Sort by tool name as tiebreaker
+
         top_tools = sorted(tool_counts.items(), key=lambda item: item[1], reverse=True)
-        messages = [
-            tool_messages[tool_call_id]
-            for tool_call_id, _ in top_tools[: self.b_factor]
-        ]
+        top_tools = [tool_messages[tool] for tool, _ in top_tools]
 
-        return messages
+        return top_tools[: self.b_factor]
 
-    async def execute_action(self, state: State, action: Message) -> State:
-        """
-        Executes a tool call and appends the result to the trajectory.
-        """
-
-        # Execute the tool call
-        fn_call = action.tool_calls[0]
+    async def execute_tool_call(self, tool_call: Message) -> Message:
+        fn_call = tool_call.tool_calls[0]
         tool = self.get_tool_by_name(fn_call.name)
         output = await tool.run(**fn_call.arguments)
         formatted_output = tool.format_output(output)
-        result = Message.tool(formatted_output, fn_call.id)
+        tool_response = Message.tool(formatted_output, fn_call.id)
 
         # TODO: Store raw output somewhere
 
-        # Update the state
-        new_state = state.from_state(state)
-        new_state.add_message(action)
-        new_state.add_message(result)
-
-        return new_state
+        return tool_response

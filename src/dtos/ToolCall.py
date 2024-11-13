@@ -18,5 +18,9 @@ class ToolCall(object):
             "type": "function",
         }
 
+    def __hash__(self):
+        sorted_arguments = json.dumps(dict(sorted(self.arguments.items())))
+        return hash((self.name, sorted_arguments))
+
     def __repr__(self):
         return f"ToolCall({self.name}, {self.arguments})"

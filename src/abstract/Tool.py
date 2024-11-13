@@ -8,6 +8,7 @@ class Tool(ABC):
         self.name: str
         self.description: str
         self.parameters: dict
+        self.is_terminal: bool
 
     @abstractmethod
     async def run(self, **kwargs) -> any:
@@ -30,6 +31,3 @@ class Tool(ABC):
 
 
 # TODO: Implement a `from_langchain_tool` static method
-# TODO: Add a return_direct field. If True, then when this
-# tool is called, the agent cannot call additional actions
-# as children. This tool is terminal.

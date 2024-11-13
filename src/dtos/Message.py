@@ -6,7 +6,7 @@ from typing import List, Union
 import json_repair
 
 # Local
-from app.shared.dtos.ToolCall import ToolCall
+from src.dtos.ToolCall import ToolCall
 
 
 class Message(object):
@@ -43,7 +43,7 @@ class Message(object):
         return cls(role="tool", content=content, tool_call_id=id)
 
     @classmethod
-    def from_openai_message(cls, message):
+    def from_response(cls, message):
         role = message.role
         content = message.content
 
