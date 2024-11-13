@@ -14,8 +14,7 @@ class Tool(ABC):
     async def run(self, **kwargs) -> any:
         return None
 
-    @abstractmethod
-    async def format_output(self, output: any) -> str:
+    def format_output(self, output: any) -> str:
         return str(output)
 
     def get_schema(self):

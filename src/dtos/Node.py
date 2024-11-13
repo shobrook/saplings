@@ -24,6 +24,29 @@ class Node(object):
         self.is_solved = False
         self.set_evaluation(evaluation)
 
+    def __repr__(self):
+        tab = "   "
+        node_str = "Node(\n"
+        node_str += f"{tab}depth={self.depth},\n"
+        node_str += f"{tab}visits={self.visits},\n"
+        node_str += f"{tab}value={self.value},\n"
+        node_str += f"{tab}score={self.score}\n"
+        node_str += f"{tab}messages=[\n"
+        for message in self.messages:
+            for line in str(message).split("\n"):
+                node_str += f"{tab}{tab}{line}\n"
+        node_str += f"{tab}],\n"
+        node_str += ")"
+
+        return node_str
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __lt__(self, other):
+        # NOTE: Used by heapq to compare nodes
+        return self.score < other.score
+
     @property
     def score(self) -> float:
         """
@@ -66,7 +89,7 @@ class Node(object):
         # eventually refactor this.
 
         self.evaluation = evaluation
-        self.value = evaluation.score if evaluation else 0
+        self._value = evaluation.score if evaluation else 0
 
     def get_messages(self, include_evals: bool = False) -> List[Message]:
         """

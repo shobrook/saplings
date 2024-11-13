@@ -17,7 +17,7 @@ class GreedyAgent(BaseAgent):
         prompt: str = AGENT_PROMPT,
         b_factor: int = 3,
         max_depth: int = 5,
-        threshold: float = 0.7,
+        threshold: float = 1.0,
     ):
         super().__init__(
             tools, model, evaluator, prompt, b_factor, max_depth, threshold

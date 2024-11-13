@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 openai = "*"
+json-repair = "*"
+tiktoken = "*"
 
 [dev-packages]
 

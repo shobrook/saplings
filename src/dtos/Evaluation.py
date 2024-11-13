@@ -1,3 +1,6 @@
+# Third party
+import json_repair
+
 # Local
 from src.dtos.Message import Message
 
@@ -8,11 +11,11 @@ class Evaluation(object):
         self.reasoning = reasoning
 
     def to_message(self) -> Message:
-        return Message.user(f"Reasoning: {self.reasoning}\nScore: {self.score}")
+        return Message.user(f"Reasoning: {self.reasoning}\nScore: {self.score * 10}")
 
     @classmethod
     def from_message(cls, message: Message) -> "Evaluation":
-        arguments = message.tool_calls[0].arguments
+        arguments = json_repair.loads(message.content)
         reasoning = arguments.get("reasoning", "")
         score = arguments.get("score", 5)
         score = max(0, min(score, 10))  # Ensures score is between 0 and 10

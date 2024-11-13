@@ -16,7 +16,7 @@ class MonteCarloAgent(object):
         prompt: str = AGENT_PROMPT,
         b_factor: int = 3,
         max_depth: int = 5,
-        threshold: float = 0.7,
+        threshold: float = 1.0,
         # MCTS hyperparameters
         max_rollouts: int = 10,
     ):
