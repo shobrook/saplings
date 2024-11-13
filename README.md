@@ -3,19 +3,24 @@
 </div>
 
 <div align="center">
-   <h1>TreeAct</h1>
+   <h1>Saplings</h1>
 </div>
+
+**Build smarter agents using tree search.**
+
+**TreeAct is a framework for building agents that use tree search to reason and plan.**
 
 **TreeAct is a lightweight framework for building search-enabled agents.**
 
-By incorporating tree search, an agent can look multiple steps ahead before committing to a particular tool-use trajectory. <!--Think of it as tree-of-thoughts meets ReAct-->This makes mistakes far more avoidable and boosts overall task performance –– especially on complex reasoning tasks, like generating code or navigating a website.
+**Saplings is a lightweight framework for building agents that use search algorithms to solve problems.**
 
-TreeAct is the easiest way to add search to your agent. It's plug-and-play and takes just a couple lines of code to get started.
+By incorporating search, an agent can explore different tool use trajectories and find the optimal path. This ability to look ahead and backtrack boosts overall task performance –– especially on complex reasoning tasks, like code generation or navigating a website.<!--Imagine tree-of-thoughts meets ReAct-->
 
-- Supports different search algorithms: **A\*, greedy BFS, and Monte Carlo Tree Search (MCTS)**
-- Uses OpenAI (or Anthropic) function calling under the hood
+TreeAct lets you build tree search into your agents with just a couple lines of code. Simply plug in your tools, choose a search algorithm (A\*, MCTS, BFS), and off you go.
+
+- Uses OpenAI function calling under the hood
 - Full control over prompts, value functions, etc.
-- Doesn't use LangChain
+- Supports popular search algorithms: **Monte Carlo Tree Search (MCTS), A\*, and greedy BFS**
 
 <div align="left">
    <img src="./demo.gif" width="85%">
@@ -29,8 +34,6 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
 
 <!--Tree-of-thoughts meets ReAct-->
 
-<<<<<<< HEAD
-
 ---
 
 - [Installation](#installation)
@@ -38,7 +41,7 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
   - [Creating a tool](#creating-a-tool)
   - [Creating an agent](#creating-an-agent)
 - [Advanced usage](#advanced-usage)
-  - [Choosing the right agent](#choosing-the-right-agent)
+  - [Search algorithms](#search-algorithms)
     - [Monte Carlo Tree Search](#monte-carlo-tree-search)
     - [A\*](#a*)
     - [Greedy BFS](#greedy-bfs)
@@ -46,8 +49,7 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
   - [Asynchronous search](#asynchronous-search)
   - [Streaming](#streaming)
   - [Different tool types](#different-tool-types)
-- # [Roadmap](#roadmap)
-  > > > > > > > a0c250306ee50960c4ed62cdda45858ef0579bbc
+- [Roadmap](#roadmap)
 
 ## Installation
 
@@ -228,15 +230,17 @@ In addition to the parameters listed above, every `TreeAct` agent also has the f
 
 TODO:
 
-1. Implement MCTS
 2. Implement greedy BFS
-3. Add support for Anthropic
-4. Add support for non-required tool calls
-5. Add synchronous support (make this default for exampels in README, async in advanced usage section)
-6. Add support for streaming
-7. Add support for streaming the steps (and/or a verbose parameter)
-8. Make the quickstart much shorter. Instead of defining a tool, use an example tool provided by the library.
-9. Allow A\* to run forever (no search budget or depth)
+3. Add support for non-required tool calls
+4. Add synchronous support (make this default for examples in README)
+5. Add a verbose parameter
+6. Add support for yielding steps (`iter_run`)
+7. Add support for Anthropic (and Groq if easy)
+8. Make diagrams for each agent (and replace GIF with a diagram)
+9. Drop normalized score. Make it normalized by default.
+10. Should there be a score threshold for solution?
+11. Add a llm_call_budget parameter to each agent
+12. Return the messages and score
 
 With function-calling agents, there's two ways for the agent to _terminate._ That is, to generate a response to the user's query. One is to include a tool that, when caled, generates the final response. The other is to make tool-use optional and let the model decide when to generate a final response. The former approach is recommended for use with search ...
 
@@ -258,6 +262,7 @@ For the second kind, termination simply occurs when the evaluator scores a traje
 4. Support for dynamic tool schemas (i.e. ones that change as the agent progresses)
 5. Other search algorithms, like AlphaBeta
 6. Support for vision models
+7. Establish a pattern for streaming the final output
 
 **Mission:** Inference-time compute is the path forward for increasing model capabilities. Compute is getting cheaper and faster, and so these techniques are becoming more viable in production. TreeAct should make it as easy as possible to build production-ready agents that use inference-time search.
 
@@ -266,3 +271,7 @@ For the second kind, termination simply occurs when the evaluator scores a traje
 If a _solution node_ is hit, the agent cannot further expand that node and must explore other branches of the tree (or return that solution if the score threshold is exceeded).
 
 To get the final solution node, we get all the _solution nodes_ from the tree first, then return the one with the highest score. If no solution nodes exist, we simply return the node with the highest score.
+
+---
+
+A trajectory is considered _solved_ if the self-evaluation score is above a given threshold.
