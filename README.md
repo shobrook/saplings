@@ -1,10 +1,4 @@
-<div align="center">
-   <img alt="TreeAct" src="./treeact.png" width="308">
-</div>
-
-<div align="center">
-   <h1>Saplings</h1>
-</div>
+# TreeAct
 
 **Build smarter agents using tree search.**
 
