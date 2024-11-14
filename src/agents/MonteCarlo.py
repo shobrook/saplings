@@ -2,12 +2,13 @@
 from typing import List, Optional
 
 # Local
+from src.agents.Base import BaseAgent
 from src.dtos import Message, Node
 from src.abstract import Tool, Model
 from src.prompts import AGENT_PROMPT
 
 
-class MonteCarloAgent(object):
+class MonteCarloAgent(BaseAgent):
     def __init__(
         self,
         tools: List[Tool],
@@ -116,13 +117,37 @@ class MonteCarloAgent(object):
         curr_node.backpropagate()
 
     async def run(self, prompt: str) -> Node:
-        num_sims = 0
+        self.log(f"Running a Monte Carlo tree search\n\n\033[37m{prompt}\033[0m\n")
+
+        num_rollouts = 0
         root = await self.generate_root_node(prompt)
-        while not self.should_terminate(root, num_sims):
+        while not self.should_terminate(root, num_rollouts):
             node = self.select(root)
+            if not node:
+                self.log(
+                    "\033[1;31mNo solution found. Returning the best trajectory available.\033[0m"
+                )
+                break
+
+            self.log(f"STARTING ROLLOUT (rollout_id={num_rollouts})")
+
             await self.expand(node)
             await self.simulate(node)
 
-            num_sims += 1
+            self.log(f"FINISHED ROLLOUT (rollout_id={num_rollouts})")
 
-        return self.get_best_node(root)
+            num_rollouts += 1
+
+        best_node = self.get_best_node(root)
+        messages, score, is_solution = (
+            best_node.get_trajectory(),
+            best_node.score,
+            self.is_solution_node(best_node),
+        )
+
+        self.log(
+            f"\033[1;32mBest trajectory (score={score}, is_solution={is_solution}):\033[0m\n\n"
+            + "\n\n".join(str(m) for m in messages)
+        )
+
+        return messages, score, is_solution

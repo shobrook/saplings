@@ -87,4 +87,34 @@ class Message(object):
         return message_str
 
     def __str__(self):
+        bold = "\033[1m"
+        grey = "\033[37m"
+        reset = "\033[0m"
+
+        if self.role == "tool":
+            return f'{bold}TOOL OUTPUT:{reset} {grey}"{self.content}"{reset}'
+        elif self.role == "user":
+            return f'{bold}USER INPUT:{reset} {grey}"{self.content}"{reset}'
+        elif self.role == "assistant":
+            if self.tool_calls:
+                tool_calls_str = ""
+                for tool_call in self.tool_calls:
+                    tool_calls_str += (
+                        f"{bold}TOOL CALL:{reset} {grey}{str(tool_call)}{reset}\n"
+                    )
+
+                return tool_calls_str.strip()
+
+            return f'{bold}ASSISTANT OUTPUT:{reset} {grey}"{self.content}"{reset}'
+
         return self.__repr__()
+
+    def __hash__(self):
+        tool_call_hashes = [hash(tc) for tc in self.tool_calls or []]
+        return hash(
+            (
+                self.role,
+                self.content,
+                tuple(tool_call_hashes) or "",
+            )
+        )

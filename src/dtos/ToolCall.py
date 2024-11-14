@@ -33,4 +33,4 @@ class ToolCall(object):
         return tool_call_str
 
     def __str__(self):
-        return self.__repr__()
+        return f"{self.name}({self.arguments})"

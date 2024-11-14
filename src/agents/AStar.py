@@ -38,7 +38,7 @@ class AStarAgent(BaseAgent):
         # Push the initial node to the frontier
         heapq.heappush(frontier, (0, root_node))
 
-        self.log(f"Running A* search with root node:\n{root_node}\n")
+        self.log(f"Running an A* search\n\n\033[37m{prompt}\033[0m\n")
         while frontier:
             # Get the next node to explore
             neg_score, curr_node = heapq.heappop(frontier)
@@ -50,7 +50,7 @@ class AStarAgent(BaseAgent):
 
             # Stop search if current node is a solution
             if self.should_terminate(curr_node):
-                self.log("Found a solution! Terminating search.")
+                self.log("\033[1;32mFound a solution! Terminating search.\033[0m")
                 break
 
             # Expand the current node, add children to the frontier
@@ -59,9 +59,19 @@ class AStarAgent(BaseAgent):
                 heapq.heappush(frontier, (-child.score, child))
         else:
             self.log(
-                "All paths exhausted without finding a solution. Terminating search and returning the best trajectory found."
+                "\033[1;31mNo solution found. Returning the best trajectory available.\033[0m"
             )
 
         best_node = self.get_best_node(root_node)
-        self.log(f"Best output:\n{best_node}\n")
-        return best_node
+        messages, score, is_solution = (
+            best_node.get_trajectory(),
+            best_node.score,
+            self.is_solution_node(best_node),
+        )
+
+        self.log(
+            f"\033[1;32mBest trajectory (score={score}, is_solution={is_solution}):\033[0m\n\n"
+            + "\n\n".join(str(m) for m in messages)
+        )
+
+        return messages, score, is_solution

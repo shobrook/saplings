@@ -42,7 +42,10 @@ class BaseAgent(object):
         if not self.verbose:
             return
 
-        print("LOG: " + message)
+        bold_yellow = "\033[1;33m"
+        reset = "\033[0m"
+
+        print(f"{bold_yellow}TREEACT LOG:{reset} {message}")
 
     def is_output_node(self, node: Node) -> bool:
         """
@@ -100,7 +103,7 @@ class BaseAgent(object):
             if tool.is_terminal:
                 return True
 
-        if self.tool_choice == "optional":
+        if self.tool_choice == "auto":
             return True
 
         return False
@@ -224,15 +227,13 @@ class BaseAgent(object):
         else:
             candidates = [Message.from_response(choice.message) for choice in response]
 
-        # TODO: Handle non-tool call candidates
-
         # Deduplicate tool calls and sort by frequency
         tool_counts = defaultdict(lambda: 0)
         tool_messages = defaultdict(dict)
-        response_messages = []
+        response_messages = set()
         for message in candidates:
             if not message.tool_calls:
-                response_messages.append(message)
+                response_messages.add(message)
                 continue
 
             tool_call = message.tool_calls[0]
@@ -243,7 +244,7 @@ class BaseAgent(object):
 
         top_tools = sorted(tool_counts.items(), key=lambda item: item[1], reverse=True)
         top_tools = [tool_messages[tool] for tool, _ in top_tools]
-        candidates = response_messages + top_tools
+        candidates = list(response_messages) + top_tools  # We prioritize responses
 
         return candidates[: self.b_factor]
 
@@ -314,10 +315,10 @@ class BaseAgent(object):
 
     async def expand(self, node: Node) -> List[Node]:
         if self.is_terminal_node(node):
-            self.log(f"Skipping expansion of terminal node:\n{node}\n")
+            self.log(f"\033[1;31mReached terminal node\033[0m\n\n{node}\n")
             return []
 
-        self.log(f"Expanding node:\n{node}\n")
+        self.log(f"Expanding node\n\n{node}\n")
 
         # Generate candidate next tool calls, execute each
         # num_candidates = max(self.b_factor * len(self.tools), 20)
@@ -331,14 +332,13 @@ class BaseAgent(object):
             for call, response in zip(tool_calls, tool_responses)
         ]
 
-        # Evaluate each child
+        # Evalucate each child
         tasks = [self.evaluate(child) for child in children]
         await asyncio.gather(*tasks)
 
         self.log(
-            f"Generated {len(children)} children nodes:"
-            + "\n"
-            + "\n".join(str(child) for child in children)
+            f"Generated {len(children)} children\n\n"
+            + "\n\n".join(str(child) for child in children)
             + "\n"
         )
 

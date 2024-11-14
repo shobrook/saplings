@@ -15,6 +15,7 @@ class Node(object):
         evaluation: Optional[Evaluation] = None,
         parent: Optional["Node"] = None,
     ):
+        self.id = id(self)
         self.messages = messages  # Tool calls + responses
         self.parent = parent
         self.children = []
@@ -27,11 +28,13 @@ class Node(object):
     def __repr__(self):
         tab = "   "
         node_str = "Node(\n"
+        node_str += f"{tab}id={self.id},\n"
+        node_str += f"{tab}parent={self.parent.id if self.parent else -1},\n"
         node_str += f"{tab}depth={self.depth},\n"
         node_str += f"{tab}visits={self.visits},\n"
         node_str += f"{tab}value={self.value},\n"
         node_str += f"{tab}score={self.score}\n"
-        node_str += f"{tab}messages=[\n"
+        node_str += f"{tab}state=[\n"
         for message in self.messages:
             for line in str(message).split("\n"):
                 node_str += f"{tab}{tab}{line}\n"
@@ -41,7 +44,24 @@ class Node(object):
         return node_str
 
     def __str__(self):
-        return self.__repr__()
+        bold = "\033[1m"
+        red = "\033[91m"
+        yellow = "\033[93m"
+        green = "\033[92m"
+        reset = "\033[0m"
+
+        value_color = red
+        if self.value >= 0.33 and self.value < 0.67:
+            value_color = yellow
+        elif self.value >= 0.67:
+            value_color = green
+
+        node_str = f"{bold}===== NODE (depth={self.depth}) ====={reset}\n\n"
+        node_str += "\n".join(str(message) for message in self.messages)
+        node_str += f"\n{bold}VALUE:{reset} {value_color}{self.value}{reset}"
+        node_str += f"\n\n{bold}===== END NODE ====={reset}"
+
+        return node_str
 
     def __lt__(self, other):
         # NOTE: Used by heapq to compare nodes
@@ -175,13 +195,18 @@ class Node(object):
             node.is_solved = True
             node = node.parent
 
-    def backpropagate(self, reward: float):
+    def backpropagate(self):
         """
         Updates the value of this node and its parents.
         """
 
-        reward = node.value
+        reward = self.value
         node = self
-        while node and node.parent:
-            node.visits += node.parent.visits
-            node.value = (node.parent.value * node.parent.visits + reward) / node.visits
+        while node:
+            node.visits += 1
+            node._value = (node.value * (node.visits - 1) + reward) / node.visits
+            node = node.parent
+
+            # node.visits += node.parent.visits
+            # node.value = (node.parent.value * node.parent.visits + reward) / node.visits
+            # node. = node.parent

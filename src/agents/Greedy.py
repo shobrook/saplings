@@ -27,10 +27,22 @@ class GreedyAgent(BaseAgent):
         return self.is_terminal_node(node)
 
     async def run(self, prompt: str) -> Node:
-        curr_node = Node([Message.user(prompt)])
+        self.log(f"Running a greedy best-first search\n\n\033[37m{prompt}\033[0m\n")
 
-        while not self.should_terminate(curr_node):
-            await self.expand(curr_node)
-            curr_node = self.get_best_node(curr_node)
+        best_node = Node([Message.user(prompt)])
+        while not self.should_terminate(best_node):
+            await self.expand(best_node)
+            best_node = self.get_best_node(best_node)
 
-        return curr_node
+        messages, score, is_solution = (
+            best_node.get_trajectory(),
+            best_node.score,
+            self.is_solution_node(best_node),
+        )
+
+        self.log(
+            f"\033[1;32mBest trajectory (score={score}, is_solution={is_solution}):\033[0m\n\n"
+            + "\n\n".join(str(m) for m in messages)
+        )
+
+        return messages, score, is_solution
