@@ -26,22 +26,7 @@ class Node(object):
         self.set_evaluation(evaluation)
 
     def __repr__(self):
-        tab = "   "
-        node_str = "Node(\n"
-        node_str += f"{tab}id={self.id},\n"
-        node_str += f"{tab}parent={self.parent.id if self.parent else -1},\n"
-        node_str += f"{tab}depth={self.depth},\n"
-        node_str += f"{tab}visits={self.visits},\n"
-        node_str += f"{tab}value={self.value},\n"
-        node_str += f"{tab}score={self.score}\n"
-        node_str += f"{tab}state=[\n"
-        for message in self.messages:
-            for line in str(message).split("\n"):
-                node_str += f"{tab}{tab}{line}\n"
-        node_str += f"{tab}],\n"
-        node_str += ")"
-
-        return node_str
+        return self.__str__()
 
     def __str__(self):
         tab = "   "
@@ -57,12 +42,19 @@ class Node(object):
         elif self.value >= 0.67:
             value_color = green
 
+        if len(self.messages) == 1:
+            messages_str = f"{tab}{str(self.messages[0])}"
+        else:
+            messages_str = f"\n".join(
+                f"{tab}{str(message)}" for message in self.messages
+            )
+
         node_str = f"{bold}NODE({reset}\n"
         node_str += f"{tab}{bold}ID:{reset} {self.id}"
         node_str += (
-            f"\n{tab}{bold}PARENT ID:{reset} {self.parent.id if self.parent else -1}"
+            f"\n{tab}{bold}PARENT ID:{reset} {self.parent.id if self.parent else -1}\n"
         )
-        node_str += f"\n".join(f"{tab}{str(message)}" for message in self.messages)
+        node_str += messages_str
         node_str += f"\n{tab}{bold}DEPTH:{reset} {self.depth}"
         node_str += f"\n{tab}{bold}VALUE:{reset} {value_color}{self.value}{reset}"
         node_str += (

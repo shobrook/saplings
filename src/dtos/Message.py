@@ -1,5 +1,4 @@
 # Standard library
-import json
 from typing import List, Union
 
 # Third party
@@ -69,22 +68,7 @@ class Message(object):
         return message
 
     def __repr__(self):
-        tab = "   "
-        message_str = "Message(\n"
-        message_str += f"{tab}role={self.role},\n"
-        message_str += f"{tab}content={self.content},\n"
-        message_str += f"{tab}tool_calls=["
-        if self.tool_calls:
-            message_str += "\n"
-            for tool_call in self.tool_calls:
-                for line in str(tool_call).split("\n"):
-                    message_str += f"{tab}{tab}{line}\n"
-            message_str += f"{tab}]"
-        else:
-            message_str += "]"
-        message_str += "\n)"
-
-        return message_str
+        self.__str__()
 
     def __str__(self):
         bold = "\033[1m"

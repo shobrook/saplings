@@ -1,13 +1,13 @@
 # Standard library
-import json
 import os
+import json
 
 # Third party
 import tiktoken
 from openai import AsyncOpenAI, OpenAI as SyncOpenAI
 
 # Local
-from src.abstract import Tool
+from src.abstract import Model, Tool
 from src.dtos import Message, ToolCall
 
 
@@ -58,7 +58,7 @@ def clean_completion_params(
 ######
 
 
-class OpenAI(object):
+class OpenAI(Model):
     CONTEXT_WINDOWS = {
         "gpt-3.5-turbo-1106": 16385,
         "gpt-3.5-turbo-0613": 4096,
@@ -85,10 +85,10 @@ class OpenAI(object):
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         self.model = model
 
-    def get_context_window(self):
+    def get_context_window(self) -> int:
         return self.CONTEXT_WINDOWS[self.model]
 
-    def count_tokens(self, text: str):
+    def count_tokens(self, text: str) -> int:
         return len(self.tokenizer.encode(text, disallowed_special=()))
 
     def count_tool_call_tokens(self, tool_call: ToolCall) -> int:
@@ -96,7 +96,7 @@ class OpenAI(object):
         num_tokens += self.count_tokens(json.dumps(tool_call.arguments))
         return num_tokens
 
-    def count_message_tokens(self, message: Message):
+    def count_message_tokens(self, message: Message) -> int:
         # TODO: This counting logic is probably out-of-date
         num_tokens = 3  # Every message starts with 3
 
@@ -112,7 +112,7 @@ class OpenAI(object):
 
         return num_tokens
 
-    def count_tool_tokens(self, tool: Tool):
+    def count_tool_tokens(self, tool: Tool) -> int:
         num_tokens = self.count_tokens(tool.name)
         num_tokens += self.count_tokens(tool.description)
 
@@ -154,7 +154,7 @@ class OpenAI(object):
         tool_choice=None,
         parallel_tool_calls=False,
         response_format={"type": "text"},
-    ):
+    ) -> any:
         completion_params = clean_completion_params(
             messages,
             model,
@@ -180,7 +180,7 @@ class OpenAI(object):
 
         return response
 
-    async def arun(
+    async def run_async(
         self,
         messages,
         model="gpt-4o",

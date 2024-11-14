@@ -50,7 +50,7 @@ class MonteCarloAgent(BaseAgent):
         # Generate the first tool call
         system_message = Message.system(self.prompt)
         user_message = Message.user(prompt)
-        response = await self.model.arun(
+        response = await self.model.run_async(
             [system_message, user_message],
             tools=self.get_tool_schemas(),
             parallel_tool_calls=False,

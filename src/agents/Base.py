@@ -4,10 +4,11 @@ from collections import defaultdict
 from typing import List, Optional
 
 # Local
+from src.evaluator import Evaluator
 from src.abstract import Model, Tool
-from src.dtos import Evaluation, Message, Node
+from src.dtos import Message, Node
 from src.llms import OpenAI
-from src.prompts import AGENT_PROMPT, EVAL_PROMPT
+from src.prompts import AGENT_PROMPT
 
 
 class BaseAgent(object):
@@ -22,21 +23,20 @@ class BaseAgent(object):
         threshold: float = 1.0,
         verbose: bool = True,
         tool_choice: str = "auto",  # or "required"
+        parallel_tool_calls: bool = False,
     ):
         # Setup
         self.tools = tools
         self.model = model if model else OpenAI()
-        self.evaluator = evaluator
+        self.evaluator = evaluator if evaluator else Evaluator(model)
         self.prompt = prompt  # Governs tool calls
         self.b_factor = b_factor  # Branching factor
         self.max_depth = max_depth
         self.threshold = threshold  # Solution threshold
         self.verbose = verbose  # For debugging
         self.tool_choice = tool_choice
-
-        # Token limits (allow us to do automatic token budgeting)
-        self.tool_call_headroom = 2048
-        self.eval_headroom = 1024
+        self.parallel_tool_calls = parallel_tool_calls
+        self.max_tool_call_tokens = 2048
 
     def log(self, message: str):
         if not self.verbose:
@@ -155,53 +155,15 @@ class BaseAgent(object):
 
         raise ValueError(f"Tool with name '{name}' not found.")
 
-    def get_trimmed_trajectory(self, node: Node, headroom: int) -> List[Message]:
-        """
-        Gets the search branch the node belongs to. Trims + drops messages to
-        fit within the token headroom.
-        """
-
-        # Get *all* messages in the search branch
-        messages = node.get_trajectory(include_evals=False)
-        input_message = messages[0]
-
-        # Trim messages to fit within the token headroom
-        headroom = self.model.get_context_window() - headroom
-        token_count = self.model.count_message_tokens(input_message)
-        token_count += sum(self.model.count_tool_tokens(tool) for tool in self.tools)
-
-        trimmed_messages = [input_message]
-        for message in reversed(messages[1:]):
-            num_tokens = self.model.count_message_tokens(message)
-            if token_count + num_tokens > headroom:
-                if message.role == "tool":
-                    message.content = "[HIDDEN]"
-                    num_tokens = self.model.count_message_tokens(message)
-
-                    if token_count + num_tokens <= headroom:
-                        token_count += num_tokens
-                        trimmed_messages.insert(1, message)
-                        continue
-
-                break
-
-            token_count += num_tokens
-            trimmed_messages.insert(1, message)
-
-        return trimmed_messages
-
     async def generate_candidates(
         self, node: Node, n: Optional[int] = None
     ) -> List[Message]:
         """
-        Generates plausible next actions to take in a given trajectory.
-        Obtains `b_factor` candidate actions by using the `num_outputs`
+        Generates plausible next tool calls to take in a given trajectory.
+        Obtains `b_factor` candidate tool calls by using the `num_outputs`
         parameter to control the number of tool calls made by the LLM.
-
-        If `num_outputs` > `b_factor`, we sort the tool calls by frequency
-        (as in # of duplicates) and return the top `b_factor` tool calls.
-
-        Candidates are always unique/de-duplicated.
+        Tool calls are always unique/de-duplicated. Can also be a response
+        not a tool call if `tool_choice == "auto"`.
         """
 
         # No. of candidates to generate
@@ -210,15 +172,17 @@ class BaseAgent(object):
         # Generate tool calls
         system_message = Message.system(self.prompt)
         headroom = (
-            self.model.count_message_tokens(system_message) + self.tool_call_headroom
+            self.model.count_message_tokens(system_message) + self.max_tool_call_tokens
         )
-        messages = [system_message] + self.get_trimmed_trajectory(node, headroom)
-        response = await self.model.arun(
+        messages = [system_message] + self.model.truncate_messages(
+            node.get_trajectory(), headroom, self.tools
+        )
+        response = await self.model.run_async(
             messages,
             tools=self.get_tool_schemas(),
-            parallel_tool_calls=False,
+            parallel_tool_calls=self.parallel_tool_calls,
             tool_choice=self.tool_choice,
-            max_tokens=self.tool_call_headroom,
+            max_tokens=self.max_tool_call_tokens,
             n=n,
             temperature=1.0,
         )
@@ -268,55 +232,18 @@ class BaseAgent(object):
         the LLM self-evaluates the node.
         """
 
-        # Use user-provided evaluator
-        if self.evaluator:
-            evaluation = self.evaluator(node)
-            node.set_evaluation(evaluation)
-            return node
-
         # TODO: If self.is_output_node(node), should we only evaluate the message(s) in that node?
         # Or evaluate the whole trajectory? For now, we are evaluating the whole trajectory.
 
-        # TODO: Add a self-consistency term. There's two ways to do this:
-        # 1. Sample multiple outputs for the evaluation score and take the average.
-        # 2. Sample multiple outputs for the candidate generation (the step before evaluation)
-        #    and weigh each candidate by the probability of it being generated. Then the final
-        #    value would be V(n) = LLM(n) * lambda + SC(n) * (1 - lambda), where lambda is a
-        #    hyperparameter that controls the weight of the self-consistency term.
-
-        # Use default evaluator
-        system_message = Message.system(EVAL_PROMPT)
-        headroom = self.model.count_message_tokens(system_message) + self.eval_headroom
-        messages = [system_message] + self.get_trimmed_trajectory(node, headroom)
-        response = await self.model.arun(
-            messages,
-            max_tokens=self.eval_headroom,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "evaluation",
-                    "strict": True,
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "reasoning": {
-                                "type": "string",
-                                "description": "Your thoughts and reasoning process. Keep it brief and concise.",
-                            },
-                            "score": {
-                                "type": "number",
-                                "description": "Score from 0-10 on the quality of the trajectory. A 10 indicates that the agent has completely succeeded in satisfying the user's intent.",
-                            },
-                        },
-                        "required": ["reasoning", "score"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-        )
-        response = Message.from_response(response)
-        evaluation = Evaluation.from_message(response)
+        trajectory = node.get_trajectory(include_evals=False)
+        evaluation = await self.evaluator.run_async(trajectory)
         node.set_evaluation(evaluation)
+
+        # TODO: Add a self-consistency term. We can do this by sampling multiple outputs for
+        # the candidate generation (the step before evaluation) and weighing each candidate
+        # by the probability of it being generated. Then the final value would be
+        # V(n) = LLM(n) * lambda + SC(n) * (1 - lambda), where lambda is a hyperparameter
+        # that controls the weight of the self-consistency term.
 
         return node
 
