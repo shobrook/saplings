@@ -277,6 +277,13 @@ class BaseAgent(object):
         # TODO: If self.is_output_node(node), should we only evaluate the message(s) in that node?
         # Or evaluate the whole trajectory? For now, we are evaluating the whole trajectory.
 
+        # TODO: Add a self-consistency term. There's two ways to do this:
+        # 1. Sample multiple outputs for the evaluation score and take the average.
+        # 2. Sample multiple outputs for the candidate generation (the step before evaluation)
+        #    and weigh each candidate by the probability of it being generated. Then the final
+        #    value would be V(n) = LLM(n) * lambda + SC(n) * (1 - lambda), where lambda is a
+        #    hyperparameter that controls the weight of the self-consistency term.
+
         # Use default evaluator
         system_message = Message.system(EVAL_PROMPT)
         headroom = self.model.count_message_tokens(system_message) + self.eval_headroom
@@ -341,8 +348,6 @@ class BaseAgent(object):
             + "\n\n".join(str(child) for child in children)
             + "\n"
         )
-
-        # TODO: Add a self-consistency term
 
         # Grow the tree
         node.add_children(children)

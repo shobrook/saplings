@@ -26,14 +26,14 @@ class MonteCarloAgent(BaseAgent):
         )
         self.max_rollouts = max_rollouts
 
-    def should_terminate(self, tree: Node, num_sims: int) -> bool:
+    def should_terminate(self, tree: Node, num_rollouts: int) -> bool:
         if tree.is_solved:
             return True
 
-        if tree.height >= self.max_depth:
-            return True
+        # if tree.height >= self.max_depth:
+        #     return True
 
-        if num_sims >= self.max_rollouts:
+        if num_rollouts >= self.max_rollouts:
             return True
 
         return False
@@ -113,6 +113,8 @@ class MonteCarloAgent(BaseAgent):
             curr_node.mark_as_solved()
             return
 
+        self.log(f"\033[1;31mReached terminal node\033[0m\n\n{curr_node}\n")
+
         # curr_node.self_reflect() # TODO
         curr_node.backpropagate()
 
@@ -123,10 +125,7 @@ class MonteCarloAgent(BaseAgent):
         root = await self.generate_root_node(prompt)
         while not self.should_terminate(root, num_rollouts):
             node = self.select(root)
-            if not node:
-                self.log(
-                    "\033[1;31mNo solution found. Returning the best trajectory available.\033[0m"
-                )
+            if not node:  # All paths exhausted
                 break
 
             self.log(f"STARTING ROLLOUT (rollout_id={num_rollouts})")
@@ -138,6 +137,13 @@ class MonteCarloAgent(BaseAgent):
 
             num_rollouts += 1
 
+        if root.is_solved:
+            self.log("\033[1;32mFound a solution! Terminating search.\033[0m")
+        else:
+            self.log(
+                "\033[1;31mNo solution found. Returning the best trajectory available.\033[0m"
+            )
+
         best_node = self.get_best_node(root)
         messages, score, is_solution = (
             best_node.get_trajectory(),
@@ -147,7 +153,7 @@ class MonteCarloAgent(BaseAgent):
 
         self.log(
             f"\033[1;32mBest trajectory (score={score}, is_solution={is_solution}):\033[0m\n\n"
-            + "\n\n".join(str(m) for m in messages)
+            + "\n".join(str(m) for m in messages)
         )
 
         return messages, score, is_solution

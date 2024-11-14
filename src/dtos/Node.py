@@ -44,6 +44,7 @@ class Node(object):
         return node_str
 
     def __str__(self):
+        tab = "   "
         bold = "\033[1m"
         red = "\033[91m"
         yellow = "\033[93m"
@@ -56,10 +57,20 @@ class Node(object):
         elif self.value >= 0.67:
             value_color = green
 
-        node_str = f"{bold}===== NODE (depth={self.depth}) ====={reset}\n\n"
-        node_str += "\n".join(str(message) for message in self.messages)
-        node_str += f"\n{bold}VALUE:{reset} {value_color}{self.value}{reset}"
-        node_str += f"\n\n{bold}===== END NODE ====={reset}"
+        node_str = f"{bold}NODE({reset}\n"
+        node_str += f"{tab}{bold}ID:{reset} {self.id}"
+        node_str += (
+            f"\n{tab}{bold}PARENT ID:{reset} {self.parent.id if self.parent else -1}"
+        )
+        node_str += f"\n".join(f"{tab}{str(message)}" for message in self.messages)
+        node_str += f"\n{tab}{bold}DEPTH:{reset} {self.depth}"
+        node_str += f"\n{tab}{bold}VALUE:{reset} {value_color}{self.value}{reset}"
+        node_str += (
+            f"\n{tab}{bold}REFLECTION:{reset} {value_color}{self.evaluation.reasoning}{reset}"
+            if self.evaluation
+            else ""
+        )
+        node_str += f"\n{bold}){reset}"
 
         return node_str
 
@@ -206,7 +217,3 @@ class Node(object):
             node.visits += 1
             node._value = (node.value * (node.visits - 1) + reward) / node.visits
             node = node.parent
-
-            # node.visits += node.parent.visits
-            # node.value = (node.parent.value * node.parent.visits + reward) / node.visits
-            # node. = node.parent

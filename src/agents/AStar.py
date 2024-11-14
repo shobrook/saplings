@@ -71,7 +71,7 @@ class AStarAgent(BaseAgent):
 
         self.log(
             f"\033[1;32mBest trajectory (score={score}, is_solution={is_solution}):\033[0m\n\n"
-            + "\n\n".join(str(m) for m in messages)
+            + "\n".join(str(m) for m in messages)
         )
 
         return messages, score, is_solution
