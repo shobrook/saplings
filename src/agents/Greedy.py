@@ -1,5 +1,5 @@
 # Standard library
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 # Local
 from src.abstract import Tool, Model
@@ -26,7 +26,7 @@ class GreedyAgent(BaseAgent):
     def should_terminate(self, node: Node) -> bool:
         return self.is_terminal_node(node)
 
-    async def run(self, prompt: str) -> Node:
+    async def run_async(self, prompt: str) -> Tuple[List[Message], float, bool]:
         self.log(f"Running a greedy best-first search\n\n\033[37m{prompt}\033[0m\n")
 
         best_node = Node([Message.user(prompt)])

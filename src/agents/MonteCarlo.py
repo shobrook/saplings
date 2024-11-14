@@ -1,5 +1,5 @@
 # Standard library
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 # Local
 from src.agents.Base import BaseAgent
@@ -55,7 +55,7 @@ class MonteCarloAgent(BaseAgent):
             tools=self.get_tool_schemas(),
             parallel_tool_calls=False,
             tool_choice="required",
-            max_tokens=self.tool_call_headroom,
+            max_tokens=self.max_tool_call_tokens,
             temperature=1.0,
         )
         tool_call = Message.from_response(response)
@@ -118,7 +118,7 @@ class MonteCarloAgent(BaseAgent):
         # curr_node.self_reflect() # TODO
         curr_node.backpropagate()
 
-    async def run(self, prompt: str) -> Node:
+    async def run_async(self, prompt: str) -> Tuple[List[Message], float, bool]:
         self.log(f"Running a Monte Carlo tree search\n\n\033[37m{prompt}\033[0m\n")
 
         num_rollouts = 0

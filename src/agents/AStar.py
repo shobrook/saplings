@@ -1,7 +1,7 @@
 # Standard library
 import heapq
 from math import inf
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 # Local
 from src.abstract import Tool, Model
@@ -29,7 +29,7 @@ class AStarAgent(BaseAgent):
     def should_terminate(self, node: Node) -> bool:
         return self.is_solution_node(node)
 
-    async def run(self, prompt: str) -> Node:
+    async def run_async(self, prompt: str) -> Tuple[List[Message], float, bool]:
         # Max priority queue
         root_node = Node([Message.user(prompt)])
         best_score = -inf  # Negative scores for max behavior

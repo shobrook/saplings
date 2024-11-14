@@ -1,5 +1,6 @@
 # Standard library
 import asyncio
+import threading
 from collections import defaultdict
 from typing import List, Optional
 
@@ -25,7 +26,6 @@ class BaseAgent(object):
         tool_choice: str = "auto",  # or "required"
         parallel_tool_calls: bool = False,
     ):
-        # Setup
         self.tools = tools
         self.model = model if model else OpenAI()
         self.evaluator = evaluator if evaluator else Evaluator(model)
@@ -235,7 +235,7 @@ class BaseAgent(object):
         # TODO: If self.is_output_node(node), should we only evaluate the message(s) in that node?
         # Or evaluate the whole trajectory? For now, we are evaluating the whole trajectory.
 
-        trajectory = node.get_trajectory(include_evals=False)
+        trajectory = node.get_trajectory()
         evaluation = await self.evaluator.run_async(trajectory)
         node.set_evaluation(evaluation)
 
@@ -255,8 +255,7 @@ class BaseAgent(object):
         self.log(f"Expanding node\n\n{node}\n")
 
         # Generate candidate next tool calls, execute each
-        # num_candidates = max(self.b_factor * len(self.tools), 20)
-        tool_calls = await self.generate_candidates(node)  # , num_candidates)
+        tool_calls = await self.generate_candidates(node)
         tasks = [self.execute_tool_call(tool_call) for tool_call in tool_calls]
         tool_responses = await asyncio.gather(*tasks)
 
@@ -266,7 +265,7 @@ class BaseAgent(object):
             for call, response in zip(tool_calls, tool_responses)
         ]
 
-        # Evalucate each child
+        # Evaluate each child
         tasks = [self.evaluate(child) for child in children]
         await asyncio.gather(*tasks)
 
@@ -280,3 +279,18 @@ class BaseAgent(object):
         node.add_children(children)
 
         return children
+
+    def run(self, prompt: str, **kwargs) -> any:
+        loop = asyncio.new_event_loop()
+        result = None
+
+        def _run():
+            nonlocal result
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self.run_async(prompt, **kwargs))
+            loop.close()
+
+        thread = threading.Thread(target=_run)
+        thread.start()
+        thread.join()
+        return result
