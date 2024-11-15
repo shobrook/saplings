@@ -1,25 +1,22 @@
-<h1 align="center">
+<div align="center">
   <img width="308" src="./logo.png" />
-  <br />
-</h1>
+</div>
 
-**A lightweight framework for building agents that use search algorithms to solve problems.**<!--complete tasks.-->
+---
 
-<!--**Saplings is a lightweight framework for building search-enabled agents.**-->
+**Saplings is a lightweight framework for building agents that use search algorithms to complete tasks.**
 
-By incorporating search, an agent can explore different tool-use trajectories and find the optimal path. This ability to look ahead and backtrack boosts overall task performance –– especially on complex reasoning problems, like code generation or doing things on a website.
-
-Saplings lets you build search into your agents _with just a couple lines of code._ It's probably the easiest way to mitigate compounding errors and make your agent a lot smarter.<!--Plug-and-play. Boosts reasoning.-->
+By incorporating search, an agent can explore different tool-use trajectories and find the optimal path. This ability to look ahead multiple steps reduces errors and boosts overall task performance –– especially on complex reasoning problems, like code generation or navigating a website. With saplings, you can build search into your agents with just a couple lines of code. <!--Plug-and-play. Boosts reasoning.-->
 
 - Supports popular search algorithms: **Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search**
 - Uses OpenAI function calling under the hood
-- Full control over prompts, value functions, search parameters, etc.
+- Full control over the evaluation function, prompts, search parameters, etc.
 
 ![Demo](./demo.png)
 
 **Why add search?**
 
-Chain-of-thought/ReAct-style agents don't work well because they're vulnerable to compounding errors. Even a small mistake early in the loop can snowball and ruin the final output. Adding tree search gives your agent lookahead and backtracking abilities, making it easier to recover from such mistakes. It's probably the easiest way to significantly boost the performance of your agent.
+Chain-of-thought/ReAct-style agents don't work well because they're vulnerable to compounding errors. Even a small mistake early in the loop can snowball and ruin the final output. Adding tree search gives your agent lookahead and backtracking abilities, making it easier to recover from such mistakes. And as compute becomes cheaper, it will become table stakes for agents to use inference-time search.
 
 ---
 
@@ -65,7 +62,7 @@ agent = MonteCarloAgent(tools, model, evaluator)
 messages, _, _ = agent.run("Let x = 9418.343 * 8.11 and y = 2x. Calculate (xy)(x^2).")
 ```
 
-Let's walk through how to create your own tools and customize an agent.
+Let's break this down and walk through how to create your own tools and customize an agent.
 
 ### Creating a tool
 
@@ -120,7 +117,7 @@ Useful if you want to use the raw output of the tool for other operations (e.g. 
 class MultiplicationTool(Tool):
    ...
 
-   def format_output(output: any):
+   def format_output(self, output: any):
       return f"The result is: {output}"
 ```
 
@@ -238,10 +235,8 @@ For the second kind, termination simply occurs when the evaluator scores a traje
 
 1. Support for chat history
 2. Support for Anthropic and Groq models
-3. Allow dynamic system prompts (i.e. one that changes as the agent progresses)
-4. Allow dynamic tool schemas
-5. Support for vision agents
-6. Establish a pattern for streaming the final output
-7. Implement simple BFS and DFS
+3. Allow dynamic system prompts and tool schemas (i.e. prompts that change as the agent progresses)
+4. Support for vision agents
+5. Implement more heuristic search algorithms
 
-**Mission:** Inference-time compute is the path forward for increasing model capabilities. Compute is getting cheaper and faster, and so these techniques are becoming more viable in production. TreeAct should make it as easy as possible to build production-ready agents that use inference-time search.
+**Mission:** Research has shown that scaling inference-time compute boosts agent capabilities. As models are getting cheaper and faster, techniques like tree search will become more viable in production settings. Saplings should be make it as easy as possible to build production-ready agents that use search.
