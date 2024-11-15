@@ -1,32 +1,25 @@
-# TreeAct
+<h1 align="center">
+  <img width="308" src="./logo.png" />
+  <br />
+</h1>
 
-**Build smarter agents using tree search.**
+**A lightweight framework for building agents that use search algorithms to solve problems.**<!--complete tasks.-->
 
-**TreeAct is a framework for building agents that use tree search to reason and plan.**
+<!--**Saplings is a lightweight framework for building search-enabled agents.**-->
 
-**TreeAct is a lightweight framework for building search-enabled agents.**
+By incorporating search, an agent can explore different tool-use trajectories and find the optimal path. This ability to look ahead and backtrack boosts overall task performance –– especially on complex reasoning problems, like code generation or doing things on a website.
 
-**Saplings is a lightweight framework for building agents that use search algorithms to solve problems.**
+Saplings lets you build search into your agents _with just a couple lines of code._ It's probably the easiest way to mitigate compounding errors and make your agent a lot smarter.<!--Plug-and-play. Boosts reasoning.-->
 
-By incorporating search, an agent can explore different tool use trajectories and find the optimal path. This ability to look ahead and backtrack boosts overall task performance –– especially on complex reasoning tasks, like code generation or navigating a website.<!--Imagine tree-of-thoughts meets ReAct-->
-
-TreeAct lets you build tree search into your agents with just a couple lines of code. Simply plug in your tools, choose a search algorithm (A\*, MCTS, BFS), and off you go.
-
+- Supports popular search algorithms: **Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search**
 - Uses OpenAI function calling under the hood
-- Full control over prompts, value functions, etc.
-- Supports popular search algorithms: **Monte Carlo Tree Search (MCTS), A\*, and greedy BFS**
+- Full control over prompts, value functions, search parameters, etc.
 
-<div align="left">
-   <img src="./demo.gif" width="85%">
-</div>
-
-_Source: [Tree Search for Language Model Agents (Koh et al.)](https://arxiv.org/abs/2407.01476)_
+![Demo](./demo.png)
 
 **Why add search?**
 
 Chain-of-thought/ReAct-style agents don't work well because they're vulnerable to compounding errors. Even a small mistake early in the loop can snowball and ruin the final output. Adding tree search gives your agent lookahead and backtracking abilities, making it easier to recover from such mistakes. It's probably the easiest way to significantly boost the performance of your agent.
-
-<!--Tree-of-thoughts meets ReAct-->
 
 ---
 
@@ -34,121 +27,119 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
 - [Quickstart](#quickstart)
   - [Creating a tool](#creating-a-tool)
   - [Creating an agent](#creating-an-agent)
-- [Advanced usage](#advanced-usage)
+- [Docs](#docs)
   - [Search algorithms](#search-algorithms)
     - [Monte Carlo Tree Search](#monte-carlo-tree-search)
     - [A\*](#a*)
-    - [Greedy BFS](#greedy-bfs)
-  - [Creating a custom evaluator](#creating-a-custom-evaluator)
-  - [Asynchronous search](#asynchronous-search)
-  - [Streaming](#streaming)
-  - [Different tool types](#different-tool-types)
+    - [Greedy best-first](#greedy-best-first)
+    - [Hyperparameters](#hyperparameters)
+  - [Custom evaluators](#custom-evaluators)
+  - [Understanding agent output](#understanding-agent-output)
 - [Roadmap](#roadmap)
+
+1. Search algorithms. Explain how each works + pros/cons + hyperparameters (only list once since they're the same for all).
+2. Custom evaluators. Explain what the default evaluator does + how to make one + use cases (e.g. code compiler).
+3. Agent output. Message object. Raw output. Streaming ability. Output tool (is_terminal).
 
 ## Installation
 
 ```bash
-$ pip install TreeAct
+$ pip install saplings
 ```
 
 ## Quickstart
 
-1. How to create a tool. Mention is_terminal. Shorten this a lot. format_output should be in the advanced section (reference it).
-2. Creating the agent. Choose OpenAI. Choose MCTS. Mention there are other agents. Mention that MCTS has specific parameters, explained in advanced section.
-
-Let's build an agent that can interact with simple calculator tools. You'll be able to ask the agent a question and watch it explore different calculation paths to generate an answer.
-
-Here's what the final code will look like:
+Below is a simple agent equipped with a calculator tool. The agent
+will use Monte Carlo Tree Search (MCTS) to solve math problems.
 
 ```python
-from treeact.tools import AdditionTool, MultiplicationTool
-from treeact.llms import OpenAI
-from treeact import AStarAgent
+from saplings.examples import MultiplicationTool
+from saplings.llms import OpenAI
+from saplings import AStarAgent, Evaluator
 
-model = OpenAI(model="gpt-4o")
-tools = [AdditionTool(), MultiplicationTool()]
+model = OpenAI(model="gpt-4o", api_key="YOUR_API_KEY")
+evaluator = Evaluator(model)
+tools = [MultiplicationTool()]
 
-agent = MonteCarloAgent(model, tools)
-agent.run("Do my taxes", stream=False)
+agent = MonteCarloAgent(tools, model, evaluator)
+messages, _, _ = agent.run("Let x = 9418.343 * 8.11 and y = 2x. Calculate (xy)(x^2).")
 ```
 
-TODO: Walk through how to create a tool. The different agent objects / search algos and how to configure them. And more advanced usage, like using a different LLM provider, customizing the value function or prompts that govern the search, asynchronous vs. synchronous usage, etc.
+Let's walk through how to create your own tools and customize an agent.
 
 ### Creating a tool
 
-Tools are _functions_ that your agent can call to perform a task or answer a query. In our example, we'll make a `CalculatorTool` that takes two numbers and adds them together.
+Tools are what your agent will use to perform a task or answer a query. Each tool must be a class that extends the `Tool` class. It should define a JSON schema for the model and implement a `run` method that actually executes the tool. If you've used [OpenAI function calling](https://platform.openai.com/docs/guides/function-calling) before, this should be familiar to you.
 
-#### Step 1: Create a `Tool` class
-
-Each tool must inherit from the `Tool` base class and define the following instance variables:
-
-- `name` (str): Name of the function.
-- `description` (str): Description of what the function does and when to call it.
-- `parameters` (dict): Parameters for the function as a JSON schema.
-- `is_terminal` (bool): If `True`, calling this function will terminate the reasoning path. Typically used for functions that generate a final answer.
-
-This should be familiar to you if you use LangChain or the [OpenAI function calling API.](https://platform.openai.com/docs/guides/function-calling)
+In our example, we'll make a simple tool that multiples two numbers together.
 
 ```python
-from treeact.abstract import Tool
+from saplings.abstract import Tool
 
-class CalculatorTool(Tool):
+class MultiplicationTool(Tool):
    def __init__(self, **kwargs):
-      self.name = "add"
-      self.description = "Adds two integers and returns the result integer."
+      self.name = "multiply"
+      self.description = "Multiplies two numbers and returns the result number."
       self.parameters = {
          "type": "object",
          "properties": {
             "a": {
                "type": "number",
-               "description": "The first number to add.",
+               "description": "The number to multiply."
             },
             "b": {
                "type": "number",
-               "description": "The second number to add."
+               "description": "The number to multiply by."
             }
          },
          "required": ["a", "b"],
-         "additionalProperties": False,
-    }
-    self.is_terminal = False
+         "additionalProperties": False
+      }
+      self.is_terminal = False
+
+   async def run(self, a: float, b: float, **kwargs):
+      return a * b
 ```
 
-#### Step 2: Define a `run` method
+**Parameters:**
 
-We've defined the function schema. Now we need to actually implement the function. The implementation should live in an async method called `run`. When the agent calls your tool, `run` is what will execute the tool call. It should have the same arguments as the parameters you defined in the previous step, and return the result of the function call.
+1. `name` (str): Name of the tool.
+2. `description` (str): Description of what the tool does and when to call it.
+3. `parameters` (dict): Arguments for the tool as a JSON schema.
+4. `is_terminal` (bool): If `True`, calling this tool will terminate the search trajectory. Typically used for tools that generate a final output for the user, or perform some other terminal action from which no further tool calls can be made.
+
+The `run` method is what actually executes the tool when the agent calls it. It should have the same arguments as the parameters defined above.
+
+#### Advanced options
+
+Optionally, you can also define a `format_output` method. By default, when the agent uses a tool, the output of `run` is stringified and shown to the model. But if you want to control how the output is presented to the model
+
+Useful if you want to use the raw output of the tool for other operations (e.g. as context in other tool calls).
 
 ```python
-class CalculatorTool(Tool):
+class MultiplicationTool(Tool):
    ...
 
-   async def run(a: int, b: int, **kwargs):
-      return a + b
-```
-
-#### Step 3: Define a `format_output` method (optional)
-
-By default, when the agent uses a tool, the output of `run` is stringified and shown to the model. But if you want to control how the output is presented to the model, you can define a `format_output` method that returns a custom string. The method will get applied automatically when the tool is called.
-
-```python
-class CalculatorTool(Tool):
-   ...
-
-   def format_output(output: any) -> str:
+   def format_output(output: any):
       return f"The result is: {output}"
 ```
 
-### Choosing a model
+Current trajectory also gets passed into every `run` call. List of OpenAI messages.
 
-`TreeAct` supports both OpenAI and Anthropic models. You must define the model you want to use before creating the agent, like so:
+### Creating an agent
+
+The first step here is choosing a model to govern the agent. Saplings only supports OpenAI right now, but Anthropic and Groq are on the [roadmap](#roadmap).
 
 ```python
-from treeact.llms import OpenAI # or Anthropic
+from treeact.llms import OpenAI
 
-model = OpenAI(api_key="YOUR_API_KEY", model="gpt-4o") # or Anthropic(...)
+model = OpenAI(model="gpt-4o", api_key="YOUR_API_KEY") # Defaults to os.getenv("OPENAI_API_KEY") if empty
 ```
 
-> Note: If you don't pass in an API key it defaults to `os.environ.get("OPENAI_API_KEY")` (or `ANTHROPIC_API_KEY` for Claude).
+The next step is to create an evaluator. This is what will compute the value function that guides the search. Generate a score between 0 and 1 for a given search trajectory. The score indicates
+
+2. Choose an evaluator (mention threshold)
+3. Choose a search algorithm
 
 ### Creating your agent
 
@@ -224,17 +215,12 @@ In addition to the parameters listed above, every `TreeAct` agent also has the f
 
 TODO:
 
-2. Implement greedy BFS
-3. Add support for non-required tool calls
-4. Add synchronous support (make this default for examples in README)
-5. Add a verbose parameter
-6. Add support for yielding steps (`iter_run`)
-7. Add support for Anthropic (and Groq if easy)
-8. Make diagrams for each agent (and replace GIF with a diagram)
-9. Drop normalized score. Make it normalized by default.
-10. Should there be a score threshold for solution?
-11. Add a llm_call_budget parameter to each agent
-12. Return the messages and score
+1. Generate multiple root nodes in beginning of MCTS.
+2. Try keeping the evaluations in the message trajectory.
+3. Make diagrams for each agent (and replace GIF with a diagram?).
+4. Change name to saplings.
+5. Add support for yielding steps (`iter_run`).
+6. Add a `llm_call_budget` parameter to each agent.
 
 With function-calling agents, there's two ways for the agent to _terminate._ That is, to generate a response to the user's query. One is to include a tool that, when caled, generates the final response. The other is to make tool-use optional and let the model decide when to generate a final response. The former approach is recommended for use with search ...
 
@@ -252,20 +238,10 @@ For the second kind, termination simply occurs when the evaluator scores a traje
 
 1. Support for chat history
 2. Support for Anthropic and Groq models
-3. Support for a dynamic system prompt (i.e. one that changes as tools are called)
-4. Support for dynamic tool schemas (i.e. ones that change as the agent progresses)
-5. Other search algorithms, like AlphaBeta
-6. Support for vision models
-7. Establish a pattern for streaming the final output
+3. Allow dynamic system prompts (i.e. one that changes as the agent progresses)
+4. Allow dynamic tool schemas
+5. Support for vision agents
+6. Establish a pattern for streaming the final output
+7. Implement simple BFS and DFS
 
 **Mission:** Inference-time compute is the path forward for increasing model capabilities. Compute is getting cheaper and faster, and so these techniques are becoming more viable in production. TreeAct should make it as easy as possible to build production-ready agents that use inference-time search.
-
----
-
-If a _solution node_ is hit, the agent cannot further expand that node and must explore other branches of the tree (or return that solution if the score threshold is exceeded).
-
-To get the final solution node, we get all the _solution nodes_ from the tree first, then return the one with the highest score. If no solution nodes exist, we simply return the node with the highest score.
-
----
-
-A trajectory is considered _solved_ if the self-evaluation score is above a given threshold.

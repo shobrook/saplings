@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 # Local
 from src.agents.Base import BaseAgent
 from src.dtos import Message, Node
-from src.abstract import Tool, Model
+from src.abstract import Tool, Model, Evaluator
 from src.prompts import AGENT_PROMPT
 
 
@@ -13,25 +13,33 @@ class MonteCarloAgent(BaseAgent):
         self,
         tools: List[Tool],
         model: Optional[Model] = None,
-        evaluator: Optional[any] = None,
+        evaluator: Optional[Evaluator] = None,
         prompt: str = AGENT_PROMPT,
         b_factor: int = 3,
         max_depth: int = 5,
         threshold: float = 1.0,
-        # MCTS hyperparameters
         max_rollouts: int = 10,
+        verbose: bool = True,
+        tool_choice: str = "auto",
+        parallel_tool_calls: bool = False,
     ):
         super().__init__(
-            tools, model, evaluator, prompt, b_factor, max_depth, threshold
+            tools,
+            model,
+            evaluator,
+            prompt,
+            b_factor,
+            max_depth,
+            threshold,
+            verbose,
+            tool_choice,
+            parallel_tool_calls,
         )
         self.max_rollouts = max_rollouts
 
     def should_terminate(self, tree: Node, num_rollouts: int) -> bool:
         if tree.is_solved:
             return True
-
-        # if tree.height >= self.max_depth:
-        #     return True
 
         if num_rollouts >= self.max_rollouts:
             return True
@@ -58,7 +66,7 @@ class MonteCarloAgent(BaseAgent):
             max_tokens=self.max_tool_call_tokens,
             temperature=1.0,
         )
-        tool_call = Message.from_response(response)
+        tool_call = Message.from_openai_message(response)
 
         # Execute the tool call
         tool_response = await self.execute_tool_call(tool_call)
@@ -109,11 +117,11 @@ class MonteCarloAgent(BaseAgent):
             await self.expand(curr_node)
             curr_node = curr_node.get_best_child()
 
+        self.log(f"\033[1;31mReached terminal node\033[0m\n\n{curr_node}\n")
+
         if self.is_solution_node(curr_node):
             curr_node.mark_as_solved()
             return
-
-        self.log(f"\033[1;31mReached terminal node\033[0m\n\n{curr_node}\n")
 
         # curr_node.self_reflect() # TODO
         curr_node.backpropagate()

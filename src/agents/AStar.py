@@ -4,7 +4,7 @@ from math import inf
 from typing import List, Optional, Tuple
 
 # Local
-from src.abstract import Tool, Model
+from src.abstract import Tool, Model, Evaluator
 from src.agents.Base import BaseAgent
 from src.dtos import Message, Node
 from src.prompts import AGENT_PROMPT
@@ -15,15 +15,26 @@ class AStarAgent(BaseAgent):
         self,
         tools: List[Tool],
         model: Optional[Model] = None,
-        evaluator: Optional[any] = None,
+        evaluator: Optional[Evaluator] = None,
         prompt: str = AGENT_PROMPT,
         b_factor: int = 3,
         max_depth: int = 5,
         threshold: float = 1.0,
         verbose: bool = True,
+        tool_choice: str = "auto",
+        parallel_tool_calls: bool = False,
     ):
         super().__init__(
-            tools, model, evaluator, prompt, b_factor, max_depth, threshold, verbose
+            tools,
+            model,
+            evaluator,
+            prompt,
+            b_factor,
+            max_depth,
+            threshold,
+            verbose,
+            tool_choice,
+            parallel_tool_calls,
         )
 
     def should_terminate(self, node: Node) -> bool:

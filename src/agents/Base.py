@@ -6,7 +6,7 @@ from typing import List, Optional
 
 # Local
 from src.evaluator import Evaluator
-from src.abstract import Model, Tool
+from src.abstract import Model, Tool, Evaluator as BaseEvaluator
 from src.dtos import Message, Node
 from src.llms import OpenAI
 from src.prompts import AGENT_PROMPT
@@ -17,7 +17,7 @@ class BaseAgent(object):
         self,
         tools: List[Tool],
         model: Optional[Model] = None,
-        evaluator: Optional[any] = None,
+        evaluator: Optional[BaseEvaluator] = None,
         prompt: str = AGENT_PROMPT,
         b_factor: int = 3,
         max_depth: int = 5,
@@ -187,9 +187,11 @@ class BaseAgent(object):
             temperature=1.0,
         )
         if n == 1:
-            candidates = [Message.from_response(response)]
+            candidates = [Message.from_openai_message(response)]
         else:
-            candidates = [Message.from_response(choice.message) for choice in response]
+            candidates = [
+                Message.from_openai_message(choice.message) for choice in response
+            ]
 
         # Deduplicate tool calls and sort by frequency
         tool_counts = defaultdict(lambda: 0)
@@ -220,9 +222,7 @@ class BaseAgent(object):
         tool = self.get_tool_by_name(fn_call.name)
         output = await tool.run(**fn_call.arguments)
         formatted_output = tool.format_output(output)
-        tool_response = Message.tool(formatted_output, fn_call.id)
-
-        # TODO: Store raw output somewhere
+        tool_response = Message.tool(formatted_output, fn_call.id, raw_output=output)
 
         return tool_response
 

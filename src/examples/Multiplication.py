@@ -20,5 +20,8 @@ class MultiplicationTool(Tool):
         }
         self.is_terminal = False
 
+    def format_output(self, output: any) -> str:
+        return f"{output['a']} * {output['b']} = {output['result']}"
+
     async def run(self, a: int, b: int, **kwargs):
-        return a * b
+        return {"a": a, "b": b, "result": a * b}

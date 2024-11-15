@@ -57,9 +57,9 @@ class Evaluator(object):
         )
 
         if self.n_samples > 1:  # Use self-consistency
-            evals = (Message.from_response(choice.message) for choice in response)
+            evals = (Message.from_openai_message(choice.message) for choice in response)
         else:
-            evals = [Message.from_response(response)]
+            evals = [Message.from_openai_message(response)]
 
         evals = [Evaluation.from_message(eval) for eval in evals]
         evaluation = evals[0]

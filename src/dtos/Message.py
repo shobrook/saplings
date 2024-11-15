@@ -15,11 +15,15 @@ class Message(object):
         content: Union[None, str] = None,
         tool_calls: Union[None, List[ToolCall]] = None,
         tool_call_id: int = None,
+        raw_output: any = None,
     ):
         self.role = role
         self.content = content
         self.tool_calls = tool_calls
         self.tool_call_id = tool_call_id
+
+        # For tool messages (unformatted tool call output)
+        self.raw_output = raw_output
 
     @classmethod
     def system(cls, content):
@@ -38,11 +42,16 @@ class Message(object):
         return cls(role="assistant", tool_calls=tool_calls)
 
     @classmethod
-    def tool(cls, content, id):
-        return cls(role="tool", content=content, tool_call_id=id)
+    def tool(cls, content, id, raw_output=None):
+        return cls(
+            role="tool",
+            content=content,
+            tool_call_id=id,
+            raw_output=raw_output,
+        )
 
     @classmethod
-    def from_response(cls, message):
+    def from_openai_message(cls, message):
         role = message.role
         content = message.content
 
@@ -91,7 +100,7 @@ class Message(object):
 
             return f'{bold}ASSISTANT OUTPUT:{reset} {grey}"{self.content}"{reset}'
 
-        return self.__repr__()
+        return ""
 
     def __hash__(self):
         tool_call_hashes = [hash(tc) for tc in self.tool_calls or []]
