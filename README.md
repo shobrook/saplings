@@ -4,9 +4,9 @@
 
 ---
 
-**Saplings is a lightweight framework for building agents that use search algorithms to complete tasks.**
+**Saplings is a plug-and-play framework for building agents that use search algorithms to complete tasks.**
 
-By incorporating search, an agent can explore different tool-use trajectories and find the optimal path. This ability to look ahead multiple steps reduces errors and boosts overall task performance –– especially on complex reasoning problems, like code generation or navigating a website. With saplings, you can build search into your agents with just a couple lines of code. <!--Plug-and-play. Boosts reasoning.-->
+By incorporating search, an agent can explore different tool-use trajectories and find the optimal path. This ability to look multiple steps ahead reduces errors and boosts overall task performance –– especially on complex reasoning problems, like code generation or navigating a website. With saplings, you can build search into your agents with just a couple lines of code.
 
 - Supports popular search algorithms: **Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search**
 - Uses OpenAI function calling under the hood
@@ -34,10 +34,6 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
   - [Understanding agent output](#understanding-agent-output)
 - [Roadmap](#roadmap)
 
-1. Search algorithms. Explain how each works + pros/cons + hyperparameters (only list once since they're the same for all).
-2. Custom evaluators. Explain what the default evaluator does + how to make one + use cases (e.g. code compiler).
-3. Agent output. Message object. Raw output. Streaming ability. Output tool (is_terminal).
-
 ## Installation
 
 ```bash
@@ -46,8 +42,7 @@ $ pip install saplings
 
 ## Quickstart
 
-Below is a simple agent equipped with a calculator tool. The agent
-will use Monte Carlo Tree Search (MCTS) to solve math problems.
+Below is a simple agent equipped with a tool for multiplying two numbers together. It can solve some tricky multiplication problems using Monte Carlo Tree Search (MCTS) under the hood.
 
 ```python
 from saplings.examples import MultiplicationTool
@@ -66,9 +61,7 @@ Let's break this down and walk through how to create your own tools and customiz
 
 ### Creating a tool
 
-Tools are what your agent will use to perform a task or answer a query. Each tool must be a class that extends the `Tool` class. It should define a JSON schema for the model and implement a `run` method that actually executes the tool. If you've used [OpenAI function calling](https://platform.openai.com/docs/guides/function-calling) before, this should be familiar to you.
-
-In our example, we'll make a simple tool that multiples two numbers together.
+Tools are what your agent will use to perform a task or answer a query. Each tool must extend the `Tool` base class and implement a few variables and methods. In our example, we'll make a simple tool that multiplies two numbers together:
 
 ```python
 from saplings.abstract import Tool
@@ -94,34 +87,33 @@ class MultiplicationTool(Tool):
       }
       self.is_terminal = False
 
+   def format_output(self, output: any):
+      return f"The result is: {output}"
+
    async def run(self, a: float, b: float, **kwargs):
       return a * b
 ```
 
-**Parameters:**
+If you've used [OpenAI function calling](https://platform.openai.com/docs/guides/function-calling) before, some of this should be familiar to you.
 
-1. `name` (str): Name of the tool.
-2. `description` (str): Description of what the tool does and when to call it.
-3. `parameters` (dict): Arguments for the tool as a JSON schema.
-4. `is_terminal` (bool): If `True`, calling this tool will terminate the search trajectory. Typically used for tools that generate a final output for the user, or perform some other terminal action from which no further tool calls can be made.
+**Variables:**
 
-The `run` method is what actually executes the tool when the agent calls it. It should have the same arguments as the parameters defined above.
+* `name` (str): Name of the tool.
+*  `description` (str): Description of what the tool does and when to call it.
+* `parameters` (dict): Arguments for the tool as a JSON schema.
+* `is_terminal` (bool): If `True`, calling this tool will terminate a search trajectory. Typically used for tools that generate a final output for the user (e.g. an answer to a question), or perform some other terminal action from which no further tool calls can be made.
 
-#### Advanced options
+**`run()` method:**
 
-Optionally, you can also define a `format_output` method. By default, when the agent uses a tool, the output of `run` is stringified and shown to the model. But if you want to control how the output is presented to the model
+This is what actually executes the tool when the agent calls it. This should have the same arguments as the input parameters defined in the tool schema.
 
-Useful if you want to use the raw output of the tool for other operations (e.g. as context in other tool calls).
+TODO: Mention that the current search trajectory gets passed into every `run` call and can be accessed via `kwargs["trajectory"]`.
 
-```python
-class MultiplicationTool(Tool):
-   ...
+**`format_output()` method (optional):**
 
-   def format_output(self, output: any):
-      return f"The result is: {output}"
-```
+This method is _optional_ and more of an advanced feature. This controls how the output of a tool call is presented to the model. By default, the output of `run()` is shown to the model. But in our example above, instead of seeing a number N, the model will see "The result is N".<!--This is useful if ...-->
 
-Current trajectory also gets passed into every `run` call. List of OpenAI messages.
+The unformatted output of the tool is still stored in the agent's memory, and can be accessed in the `Message` objects returned by the agent. More on that [here](#
 
 ### Creating an agent
 
