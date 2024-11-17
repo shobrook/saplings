@@ -29,4 +29,4 @@ class Tool(ABC):
         }
 
 
-# TODO: Implement a `from_langchain_tool` static method
+# TODO: Implement a `from_langchain_tool` static method?

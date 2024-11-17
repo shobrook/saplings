@@ -214,13 +214,15 @@ class BaseAgent(object):
 
         return candidates[: self.b_factor]
 
-    async def execute_tool_call(self, message: Message) -> Message:
+    async def execute_tool_call(
+        self, message: Message, trajectory: List[Message]
+    ) -> Message:
         if not message.tool_calls:
             return None
 
         fn_call = message.tool_calls[0]
         tool = self.get_tool_by_name(fn_call.name)
-        output = await tool.run(**fn_call.arguments)
+        output = await tool.run(**fn_call.arguments, trajectory=trajectory)
         formatted_output = tool.format_output(output)
         tool_response = Message.tool(formatted_output, fn_call.id, raw_output=output)
 
@@ -255,8 +257,11 @@ class BaseAgent(object):
         self.log(f"Expanding node\n\n{node}\n")
 
         # Generate candidate next tool calls, execute each
+        trajectory = node.get_trajectory()
         tool_calls = await self.generate_candidates(node)
-        tasks = [self.execute_tool_call(tool_call) for tool_call in tool_calls]
+        tasks = [
+            self.execute_tool_call(tool_call, trajectory) for tool_call in tool_calls
+        ]
         tool_responses = await asyncio.gather(*tasks)
 
         # Create child nodes
