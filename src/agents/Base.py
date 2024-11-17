@@ -249,7 +249,7 @@ class BaseAgent(object):
 
         return node
 
-    async def expand(self, node: Node) -> List[Node]:
+    async def expand(self, node: Node, run_eval=True) -> List[Node]:
         if self.is_terminal_node(node):
             self.log(f"\033[1;31mReached terminal node\033[0m\n\n{node}\n")
             return []
@@ -271,8 +271,9 @@ class BaseAgent(object):
         ]
 
         # Evaluate each child
-        tasks = [self.evaluate(child) for child in children]
-        await asyncio.gather(*tasks)
+        if run_eval:
+            tasks = [self.evaluate(child) for child in children]
+            await asyncio.gather(*tasks)
 
         self.log(
             f"Generated {len(children)} children\n\n"
