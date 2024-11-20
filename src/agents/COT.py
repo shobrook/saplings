@@ -8,7 +8,7 @@ from src.dtos import Node, Message
 from src.prompts import AGENT_PROMPT
 
 
-class ReActAgent(BaseAgent):
+class COTAgent(BaseAgent):
     def __init__(
         self,
         tools: List[Tool],

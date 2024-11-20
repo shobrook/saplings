@@ -69,7 +69,9 @@ class MonteCarloAgent(BaseAgent):
         tool_call = Message.from_openai_message(response)
 
         # Execute the tool call
-        tool_response = await self.execute_tool_call(tool_call)
+        tool_response = await self.execute_tool_call(
+            tool_call, trajectory=[user_message]
+        )
 
         # Build and evaluate the root node
         node = Node([Message.user(prompt), tool_call, tool_response])
