@@ -271,6 +271,7 @@ In most cases, simply customizing this object will be sufficient, but in some si
 
 ```python
 from saplings.abstract import Evaluator
+from saplings.dtos import EvaluationDTO
 
 class CustomEvaluator(Evaluator):
    def __init__(self):
