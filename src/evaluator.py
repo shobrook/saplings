@@ -21,7 +21,7 @@ class Evaluator(object):
         self.prompt = prompt
         self.max_output_tokens = 1024
 
-    async def run_async(self, trajectory: List[Message]) -> Evaluation:
+    async def run(self, trajectory: List[Message]) -> Evaluation:
         system_message = Message.system(self.prompt)
         headroom = (
             self.model.count_message_tokens(system_message) + self.max_output_tokens

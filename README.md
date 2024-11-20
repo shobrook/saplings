@@ -1,5 +1,5 @@
 <div align="center">
-  <img width="308" src="./logo.png" />
+  <img width="308" src="./assets/logo.png" />
 </div>
 
 ---
@@ -12,7 +12,7 @@ By incorporating search, an agent can explore different tool-use trajectories an
 - Uses OpenAI function calling under the hood
 - Full control over the evaluation function, prompts, search parameters, etc.
 
-![Demo](./demo.png)
+![Demo](./assets/demo.png)
 
 **Why add search?**
 
@@ -27,15 +27,15 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
 - [Docs](#docs)
   - [Agents](#agents)
     - [Parameters](#parameters)
-    - [MonteCarloAgent: Monte Carlo tree search](#monte-carlo-tree-search)
-    - [AStarAgent: A\* search](#a*-agent)
-    - [GreedyAgent: Greedy best-first search](#greedy-best-first-search)
-    - [ReActAgent: Chain-of-thought (no search)](#chain-of-thought)
+    - [`MonteCarloAgent`: Monte Carlo tree search](#montecarloagent-monte-carlo-tree-search)
+    - [`AStarAgent`: A\* search](astaragent-a-search)
+    - [`GreedyAgent`: Greedy best-first search](#greedyagent-greedy-best-first-serach)
+    - [`COTAgent`: Chain-of-thought (no search)](#cotagent-chain-of-thought-no-search)
   - [The `Message` object](#the-message-object)
+  - [Termination conditions](#termination-conditions)
   - [Advanced tool options](#advanced-tool-options)
     - [Accessing agent memory](#accessing-agent-memory)
-    - [The `format_output()` method](<#the-format_output()-method>)
-    - [Terminal tools](#terminal-tools)
+    - [The `format_output()` method](#the-format_output-method)
   - [Custom evaluators](#custom-evaluators)
 - [Roadmap](#roadmap)
 
@@ -47,7 +47,7 @@ $ pip install saplings
 
 ## Quickstart
 
-Below is a simple agent equipped with a tool for multiplying numbers together. It uses Monte Carlo Tree Search (MCTS) under the hood to solve tricky arithmetic problems.
+Below is a simple agent implementing Monte Carlo tree search (MCTS). It's equipped with a multiplication tool to solve tricky arithmetic problems.
 
 ```python
 from saplings.examples import MultiplicationTool
@@ -62,11 +62,11 @@ agent = MonteCarloAgent(tools, model, evaluator)
 messages, _, _ = agent.run("Let x = 9418.343 * 8.11 and y = 2x. Calculate (xy)(x^2).")
 ```
 
-This is like the "bare minimum" for setting up a search agent with saplings –– there are a lot more parameters you can control, which is covered in the [docs](#docs). But let's first walk through how to create your own tools and configure an agent.
+This is the "bare minimum" for setting up a search agent with saplings –– just a few lines of code. There are a lot more parameters you can control, all covered in the [docs](#docs). But let's first walk through the basics of creating your own tools and configuring an agent.
 
 ### Creating a tool
 
-Tools are what your agent will use to perform a task or answer a query. Each tool must extend the `Tool` base class and implement a few variables and methods. In our example, we'll make a simple tool that multiplies two numbers together:
+Tools are what your agent will use to perform a task or answer a query. Each tool must extend the `Tool` base class and implement a few variables and methods. Here's an example of a simple tool that multiples two numbers together:
 
 ```python
 from saplings.abstract import Tool
@@ -98,24 +98,26 @@ class MultiplicationTool(Tool):
 
 **Variables:**
 
-These tell the model when and how to call your tool. If you've used [OpenAI function calling](https://platform.openai.com/docs/guides/function-calling) before, this should be familiar to you.
+The instance variables in the class tell the agent when and how to call the tool. If you've used [OpenAI function calling](https://platform.openai.com/docs/guides/function-calling) before, most of this should be familiar to you.
 
 - `name` (str): Name of the tool.
 - `description` (str): Description of what the tool does and when to call it.
 - `parameters` (dict): Arguments for the tool as a JSON schema.
-- `is_terminal` (bool): If `True`, calling this tool will terminate a search trajectory. Typically used for tools that generate a final output for the user (e.g. an answer to a question), or perform some other terminal action from which no further tool calls can be made.
+- `is_terminal` (bool): If `True`, calling this tool will terminate a search trajectory –– meaning, no subsequent tools can be called after this one. This is typically used for tools that generate a final output for the user (e.g. an answer to a question). More on this [here.](#termination-conditions)
 
 **`run()` method:**
 
-This is what actually executes the tool when the agent calls it. Arguments should be the same as the input parameters defined in the tool schema above.
+This is what actually executes the tool when the agent calls it. Arguments should be the same as the input parameters in the tool schema.
 
-There are some more advanced things you can do with tools, such as accessing the agent's memory during tool execution, or controlling how tool output is shown to the model. You can read more about these options [here.](#additional-options-for-tools)
+**Advanced options:**
+
+There are additional things you can do with tools, such as accessing the agent's memory during tool execution, or controlling how tool output is shown to the model (vs. how it's stored in memory). You can read about these options [here.](#advanced-tool-options)
 
 ### Configuring an agent
 
 **Choosing a model:**
 
-Saplings only supports OpenAI models right now, but Anthropic and Groq are on the [roadmap](#roadmap).
+First, you need to choose a model for the agent to use. Saplings only supports OpenAI models right now, but Anthropic and Groq are on the [roadmap](#roadmap).
 
 ```python
 from saplings.llms import OpenAI
@@ -123,11 +125,11 @@ from saplings.llms import OpenAI
 model = OpenAI(model="gpt-4o", api_key="YOUR_API_KEY") # Defaults to os.getenv("OPENAI_API_KEY") if empty
 ```
 
-> Note: if you pass in additional `**kwargs` they'll be used in all the chat completions calls made with this model.
+> Note: if you pass in additional `**kwargs`, they will get passed to all the chat completion calls made with this model.
 
 **Setting up the evaluator:**
 
-This is what will evaluate the agent's current search trajectory. It takes a list of OpenAI messages (`Message` objects) as input and returns a score between 0 and 1, indicating how promising the trajectory is. By default, a score of `1.0` means the agent has _solved_ the problem and can terminate the search. You can adjust this threshold using the `threshold` parameter in the agent itself (more on that [here](#hyperparameters)).
+This is what will guide the search process. The evaluator takes a search trajectory (i.e. a list of OpenAI messages) and returns a score between 0 and 1, indicating how promising the trajectory is. By default, a score of `1.0` means the agent has _solved_ the problem and can terminate the search. You can change the solution cutoff by setting the `threshold` parameter in the agent –– more on that [here](#parameters).
 
 ```python
 from saplings import Evaluator
@@ -135,11 +137,11 @@ from saplings import Evaluator
 evaluator = Evaluator(model)
 ```
 
-The default evaluator provided by saplings uses a LLM (i.e. the `model` you pass in) to evaluate the trajectory. You can control the system prompt using the `prompt` parameter, and the sampling rate with the `n_samples` parameter. Alternatively, you can also define your own custom evaluator. Read more about evaluation [here](#custom-evaluators).
+The default evaluator provided by saplings uses a LLM (i.e. the `model` you pass in above) to score trajectories. The `Evaluator` object has parameters that let you control things like the system prompt used and the sampling rate. You can also define your own custom evaluator if necessary. Read more about evaluators [here](#custom-evaluators).
 
 **Choosing an agent/search algorithm:**
 
-Once your tools, model, and evaluator are ready, you can simply plug them into a saplings agent. There are multiple to choose from, each with their own tree search algorithm: `MonteCarloAgent`, `AStarAgent`, and `GreedyAgent`. There's also a regular chain-of-thought agent available, `ReActAgent`, which does not implement any search. Each agent has their own advantages and disadvantages. You can read more about each agent and their tradeoffs [here](#agents).
+Once your tools, model, and evaluator are ready, you can simply plug them into a saplings agent. There are multiple to choose from, each implementing their own tree search algorithm: `MonteCarloAgent`, `AStarAgent`, and `GreedyAgent`. There's also a regular chain-of-thought agent available, `COTAgent`, which does not implement any search. Each agent has their own advantages and disadvantages, which you can read about [here](#agents).
 
 ```python
 from treeact import MonteCarloAgent
@@ -147,15 +149,15 @@ from treeact import MonteCarloAgent
 agent = MonteCarloAgent(tools, model, evaluator)
 ```
 
-This will initialize your agent. Note that you can change the system prompt that governs the agent using the `prompt` argument. You can also control many other agent parameters, all listed [here.](#parameters)
-
-To actually run the agent, simply call the `run` method. To run it asynchronously, you can use the `run_async` method.
+This will initialize your agent. To actually run it on an input, call the `run` method. To run it asynchronously, call the `run_async` method.
 
 ```python
-messages, final_score, is_solution = agent.run("What's 2 * 2?")
+messages, score, is_solution = agent.run("What's 2 * 2?") # await agent.run_async("What's 2 * 2?")
 ```
 
-TODO: Explain the output. Explain `iter_run` option.
+The output is a list of messages representing the best tool-use trajectory, the final score of the trajectory (as given by the evaluator), and whether or not the search terminated because the evaluator deemed the trajectory a _solution_ to the prompt. The messages are [`Message` objects,](#the-message-object) which are special objects native to saplings that wrap OpenAI messages.
+
+Notably, there are [many more parameters](#parameters) you can set for the agent, such as the system prompt that governs it.
 
 ## Docs
 
@@ -163,40 +165,82 @@ TODO: Explain the output. Explain `iter_run` option.
 
 #### Parameters
 
-1. `depth` (int): Maximum depth of the search tree, indicating how many levels the agent can explore.
-2. `b_factor` (int): Branching factor. Specifies the number of potential next actions (i.e. tool calls) to evaluate at each step in a trajectory.
-3. `budget` (int or None): Search budget. This defines the maximum number of nodes (i.e. tool calls) allowed in the search tree before the search is terminated. If `None`, the `depth` and/or `threshold` are used as a termination condition.
-4. `threshold` (float): A cutoff value for the value function. If the output exceeds this threshold, the search halts, and the current trajectory is accepted.
+Every agent in saplings has the same parameters, listed below:
 
-#### `MonteCarloAgent`: Monte Carlo tree search
-
-#### `AStarAgent`: A\* search
-
-Implements a variation of the A\* pathfinding algorithm, based on the technique described in [Tree Search for Language Model Agents (Koh et al.).](https://arxiv.org/abs/2407.01476) Unlike `GreedyAgent`, this agent is potentially slower and more expensive, but is capable of backtracking and recovering from mistakes. `AStarAgent` is a good middle ground between `GreedyAgent` (dumb but fast) and `MonteCarloAgent` (smart but slow).
+1. `tools` (List[Tool]): List of tools your agent can use.
+2. `model` (Model): LLM provider that your agent will use to call tools.
+3. `evaluator` (BaseEvaluator): Evaluation function that the agent will use to guide the search process.
+4. `prompt` (str): System prompt for the agent.
+5. `b_factor` (int): Branching factor, i.e. the number of potential next tool calls to evaluate at each step in a search trajectory. Note that this parameter does not do anything for `COTAgent`.
+6. `max_depth` (int): Maximum depth of the search tree, indicating how many levels the agent can explore.
+7. `threshold` (float): A cutoff value for the evaluation function. If a trajectory's evaluation score is above this threshold, the search will terminate and that trajectory will be accepted as the solution.<!--TODO: Note the exception here-->
+8. `verbose` (bool): Whether to print logging statements when you run the agent.
+9. `tool_choice` ("auto" | "required"): Same as the `tool_choice` parameter in the OpenAI chat completions function. Indicates whether the model must _always_ call a tool, or if it can decide to generate a normal response instead.<!--TODO: Note that this changes the termination behavior of the agent-->
+10. `parallel_tool_calls` (bool): Same as the `parallel_tool_calls` parameter in the OpenAI chat completions function. Indicates whether the model can generate _multiple_ tool calls in a single completion request.
 
 #### `GreedyAgent`: Greedy best-first serach
 
-Implements a greedy breadth-first search. This agent will generate a set of candidate actions, self-evaluate each one, and then pick the best one to explore. It will repeat this until a termination condition is met. `GreedyAgent` is the fastest and cheapest agent, but also is incapable of backtracking if it goes down the wrong reasoning path.
+This agent implements a greedy best-first search. It's the fastest and cheapest search agent, in terms of LLM calls, but it's also incapable of backtracking, thus making it the least effective agent. `GreedyAgent` works by taking the input and generating a set of candidate tool calls. It executes each tool call and evaluates their outputs. Then, it picks the best tool call based on its evaluation and generates a set of candidate _next_ tool calls. It repeats this process until a termination condition is met.
 
-TODO
+#### `MonteCarloAgent`: Monte Carlo tree search
 
-#### `ReActAgent`: Chain-of-thought (no search)
+![Demo](./assets/mcts.png)
 
-TODO
+This agent implements the Monte Carlo tree search (MCTS) algorithm, based on the paper [Language Agent Tree Search (Zhou, et. al).](https://arxiv.org/pdf/2310.04406) It is the most effective agent you can build with saplings, but also the slowest and most expensive (in terms of LLM calls) in the worst case. The primary advantage of this agent is its ability to balance exploration and exploitation, allowing it to efficiently find optimal trajectories by using past experiences and adjusting its strategy accordingly.
+
+Note that, besides the parameters [listed above](#parameters), this agent has one additional parameter:
+
+1. `max_rollouts` (int, default = 10): This controls the maximum # of simulations the agent can perform.
+
+#### `AStarAgent`: A\* search
+
+![Demo](./assets/astar.gif)
+
+Implements a variation of the A\* pathfinding algorithm, based on the paper [Tree Search for Language Model Agents (Koh, et al.).](https://arxiv.org/abs/2407.01476) Unlike `GreedyAgent`, this agent makes more LLM calls in the worst case, but is capable of backtracking and recovering from mistakes. However, unlike `MonteCarloAgent`, it does not update its search strategy based on the trajectories it has already explored. Oftentimes, `AStarAgent` is the perfect middle-ground between `GreedyAgent` (dumb but fast) and `MonteCarloAgent` (smart but slow).
+
+#### `COTAgent`: Chain-of-thought (no search)
+
+This is a standard tool-calling agent and does not implement any search. It takes an input, calls a tool, then uses the tool output to inform the next tool call, and so on until a termination condition is met. Think of `COTAgent` as a baseline to compare your search agents to.
 
 ### The `Message` object
 
-TODO: Explain `raw_output`. Explain `to_openai_message`. Explain how messages represent trajectory. Explain how agents return the optimal trajectory as a list of messages.
+[Messages](https://github.com/shobrook/saplings/blob/master/src/dtos/Message.py) are a core data structure in saplings. They are essentially equivalent to OpenAI messages (e.g. user input, tool calls, tool responses, assistant responses), with a few extra properties and helper methods. A list of messages represents a search trajectory. When you run an agent, it will return a list of messages representing the best trajectory it found.
+
+Saplings messages can be easily converted into OpenAI messages using the `to_openai_message()` method.
+
+```python
+messages, _, _ = agent.run("This is my prompt!")
+messages = [message.to_openai_response() for message in messages]
+
+print(messages)
+# [{"role": "user", "content": "This is my prompt!"}, ..., {"role": "assistant", "content": "This is a response!"}]
+```
+
+Message objects have only one additional attribute that OpenAI messages don't have. If a message represents a tool response, it will have a `raw_output` property that contains the output of that tool. What's stored here [may be different than](#the-format_output-method) the tool response that gets shown to the model, which is stored in the `content` property.
+
+### Termination conditions
+
+Every tool has an `is_terminal` property. This is a boolean flag that tells the agent if calling the tool should terminate a search trajectory. If it's `True`, no subsequent tool calls can be made after the tool is invoked, and the agent will terminate that search trajectory. Terminal tools are typically used to generate some sort of final output for the user (e.g. an answer to a question).
+
+We say that an agent can _self-terminate_ if it has at least one terminal tool, OR if the `tool_choice` parameter is set to "auto." In the latter case, this means that calling a tool is _optional_ for the agent, and instead of a tool call, it can generate a regular assistant response to the input prompt. We consider such a response to also terminate a search trajectory.
+
+If an agent cannot self-terminate, then a search trajectory will only ever terminate if either a maximum depth is reached (set by the `max_depth` parameter), or the evaluator marks a trajectory as _solved_ (i.e. the score is >= the agent's `threshold` parameter) –– in which case the entire search itself terminates.
+
+An important point of confusion here: even if an evaluator marks a trajectory as solved, the search may not terminate if the agent can self-terminate. This happens when a trajectory ends with a _non-terminal_ tool call (or a non-assistant response, in the case when tool use is optional) but is still given a score above the solution threshold. In this case, the search will continue unless until a terminal state is reached that is marked as solved. If no terminal state is ever reached, the trajectory with the best score is returned. If no solution is ever found, and there is one trajectory with a terminal state and another with a non-terminal state but a higher score, the terminal trajectory is preferred and returned.
+
+<!--### Streaming
+
+Let's say you're building a Q&A agent and its equipped with a _terminal_ tool that generates a final answer when called. During the search process, this tool may be called _multiple_ times before the search terminates. In these cases, if your tool streams the output to the user, the user will get multiple streams until a final one is...-->
 
 ### Advanced tool options
 
 #### Accessing agent memory
 
-In some cases, running your tool may depend on the output of the previous tools your agent has used, or the user input. To handle this, you can access the agent's current search trajectory via `kwargs.get("trajectory")`. This will return a list of `Message` objects, which are wrappers around OpenAI messages (discussed in more detail [here](#understanding-agent-output)).
+In some cases, running your tool may depend on the output of the previous tools your agent has used, or the user input itself. If this is the case, you can access the agent's current search trajectory in the `run` method when you implement your tool. Simply use `kwargs.get("trajectory")`. This will return a list of [Message](#the-message-object) objects, which are wrappers around OpenAI messages.
 
 #### The `format_output()` method
 
-You can add an additional method to your tool class called `format_output`. It controls how the output of a tool call is presented to the model. By default, the raw output of `run()` is shown to the model. But for, say, prompt engineering reasons, it may be advantageous to present the output in a special way for the model to read. E.g. in the quickstart example, instead of seeing the multiplication result N, you might want the model to see "A \* B = N" so the agent can more easily keep track of what numbers have been multiplied. Here's how you'd modify the tool to do that:
+In some cases, it makes sense for the raw output of a tool to be separated from the output that's shown to the model. By default, the output of `run()` is what's shown to the model. But you can add the _optional_ `format_output` method to your tool class to change how the output is presented to the agent. For example, in our quickstart example, instead of seeing the multiplication result N, you might want the model to see "A \* B = N" so the agent can more easily keep track of what numbers have been multiplied. Here's how you'd modify the tool to do that:
 
 ```python
 class MultiplicationTool(object):
@@ -211,16 +255,35 @@ class MultiplicationTool(object):
       return f"{a} * {b} = {result}"
 ```
 
-The unformatted output of the tool is still stored in the agent's memory. It can be accessed via the `raw_output` property of the `Message` object that represents the tool response. More on those objects [here.](#understanding-agent-output)
-
-#### Terminal tools
-
-TODO: Explain the different search termination conditions.
-TODO: Also explain how you can enable streaming here.
+The unformatted output of the tool is still stored in the agent's memory. It can be access via the `raw_output` property of the [Message](#the-message-object) object that represents the tool response.
 
 ### Custom evaluators
 
-TODO
+Every agent implements a _heuristic search algorithm,_ meaning that it uses some heuristic or value function to guide the search. By default, saplings offers the `Evaluator` object, which evaluates a search trajectory using a LLM. It takes a trajectory (i.e. a list of OpenAI messages) as input and returns a score between 0 and 1 which tells the agent if its on the right track or not, along with some written justification for the score.
+
+The `Evaluator` object has the following parameters:
+
+1. `model` (Model): The LLM used to generate the score.
+2. `n_samples` (int): The number of scores to generate for a given trajectory. Equivalent to the `n` parameter in an OpenAI chat completion. If it's greater than 1, multiple candidate scores will be generated for a given trajectory and then averaged to return the final score. Making this greater than 1 is equivalent to enabling [self-consistency](https://arxiv.org/pdf/2203.11171) in the evaluation process.
+3. `prompt` (str): The system prompt that tells the model how it should evaluate a trajectory and generate a score.
+
+In most cases, simply customizing this object will be sufficient, but in some situations it makes sense to build your own evaluator. For example, if you're building a coding agent, you may want to evaluate a search trajectory using some external feedback, such as whether the code compiles or whether a set of unit tests are passing. To build a custom evaluator, you must extend the `Evaluator` base class and implement a `run` method. This method must take in a list of [Message](#the-message-object) objects as input, representing a search trajectory, and return an [`EvaluationDTO` object](https://github.com/shobrook/saplings/blob/master/src/dtos/Evaluation.py) as output. This object has two properties: `score` (a value between 0 and 1) and `reasoning` (an _optional_ string with written justification for the score).
+
+```python
+from saplings.abstract import Evaluator
+
+class CustomEvaluator(Evaluator):
+   def __init__(self):
+      pass
+
+   async def run(self, trajectory: List[Message]) -> EvaluationDTO:
+      # Implement this
+      return EvaluationDTO(score=1.0, reasoning="Justification goes here.")
+```
+
+Note that the trajectory will always contain the original input message, every tool call, and every tool response. For the tool responses, you can access the raw output of the tool using the `Message.raw_output` property, discussed in more detail [here.](#the-format_output-method)
+
+Each agent has a `threshold` parameter, which determines the minimum score at which to terminate the search and deem a trajectory as a _solution._ By default, it is 1.0, so you should keep this in mind when designing your evaluator.
 
 ## Roadmap
 
@@ -228,5 +291,10 @@ TODO
 2. Support for Anthropic and Groq models
 3. Allow dynamic system prompts and tool schemas (i.e. prompts that change as the agent progresses)
 4. Support for vision agents
+5. Add an `llm_call_budget` parameter to every agent
 
-**Mission:** More inference-time compute makes agents smarter. And as models get cheaper and faster, search will become more viable to use in production. Saplings should be the go-to framework for building search-enabled agents.
+**Mission:** More inference-time compute makes agents smarter. And as models get cheaper and faster, search will become more viable to use in production. Let's build the easiest and most powerful framework for building search-enabled agents.
+
+## Note from the author
+
+One of my other open-source packages used to be called saplings. It has since been renamed to [syntaxis](https://github.com/shobrook/syntaxis) and is now associated with the package of the same name on PyPi.

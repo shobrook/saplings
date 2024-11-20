@@ -1,3 +1,6 @@
+# Standard library
+from typing import Optional
+
 # Third party
 import json_repair
 
@@ -6,7 +9,7 @@ from src.dtos.Message import Message
 
 
 class Evaluation(object):
-    def __init__(self, score: int, reasoning: str):
+    def __init__(self, score: int, reasoning: Optional[str] = None):
         self.score = score
         self.reasoning = reasoning
 

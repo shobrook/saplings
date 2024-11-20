@@ -8,5 +8,5 @@ from src.dtos import Message, Evaluation as EvaluationDTO
 
 class Evaluator(ABC):
     @abstractmethod
-    async def run_async(self, trajectory: List[Message]) -> EvaluationDTO:
+    async def run(self, trajectory: List[Message]) -> EvaluationDTO:
         return None

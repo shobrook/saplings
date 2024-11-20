@@ -78,15 +78,16 @@ class OpenAI(Model):
         "gpt-4o-mini": 128000,
     }
 
-    def __init__(self, model="gpt-4o", api_key=None):
+    def __init__(self, model="gpt-4o", api_key=None, **kwargs):
         api_key = api_key or os.getenv("OPENAI_API_KEY", None)
         self.client = SyncOpenAI(api_key=api_key)
         self.async_client = AsyncOpenAI(api_key=api_key)
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
         self.model = model
+        self.kwargs = kwargs
 
     def get_context_window(self) -> int:
-        return self.CONTEXT_WINDOWS[self.model]
+        return self.CONTEXT_WINDOWS.get(self.model, 128000)
 
     def count_tokens(self, text: str) -> int:
         return len(self.tokenizer.encode(text, disallowed_special=()))
@@ -171,7 +172,9 @@ class OpenAI(Model):
             response_format,
         )
 
-        response = self.client.chat.completions.create(**completion_params)
+        response = self.client.chat.completions.create(
+            **{**completion_params, **self.kwargs}
+        )
         if not stream:
             if n == 1:
                 return response.choices[0].message
@@ -212,7 +215,9 @@ class OpenAI(Model):
             response_format,
         )
 
-        response = await self.async_client.chat.completions.create(**completion_params)
+        response = await self.async_client.chat.completions.create(
+            **{**completion_params, **self.kwargs}
+        )
         if not stream:
             if n == 1:
                 return response.choices[0].message

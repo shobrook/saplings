@@ -106,6 +106,22 @@ class Node(object):
 
         return not self.children
 
+    @property
+    def is_tool_call(self) -> bool:
+        """
+        Returns whether this node represents a tool call.
+        """
+
+        return any(bool(message.tool_calls) for message in self.messages)
+
+    @property
+    def is_user_input(self) -> bool:
+        """
+        Returns whether this node represents a user input.
+        """
+
+        return any(message.role == "user" for message in self.messages)
+
     def set_evaluation(self, evaluation: Optional[Evaluation]):
         # NOTE: We only need this method because we create nodes before they're
         # evaluated. This is just for convenience and can be confusing. Should

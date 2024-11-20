@@ -238,7 +238,7 @@ class BaseAgent(object):
         # Or evaluate the whole trajectory? For now, we are evaluating the whole trajectory.
 
         trajectory = node.get_trajectory()
-        evaluation = await self.evaluator.run_async(trajectory)
+        evaluation = await self.evaluator.run(trajectory)
         node.set_evaluation(evaluation)
 
         # TODO: Add a self-consistency term. We can do this by sampling multiple outputs for
