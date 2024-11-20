@@ -3,7 +3,7 @@ from typing import List
 from abc import ABC, abstractmethod
 
 # Local
-from src.dtos import Message, Evaluation as EvaluationDTO
+from saplings.dtos import Message, Evaluation as EvaluationDTO
 
 
 class Evaluator(ABC):

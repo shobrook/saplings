@@ -1,5 +1,5 @@
 # Local
-from src.abstract import Tool
+from saplings.abstract import Tool
 
 
 class MultiplicationTool(Tool):

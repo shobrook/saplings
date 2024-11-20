@@ -1,19 +1,19 @@
 # Local
-from src.abstract import Tool
+from saplings.abstract import Tool
 
 
-class DivisionTool(Tool):
+class AdditionTool(Tool):
     def __init__(self, **kwargs):
-        self.name = "divide"
-        self.description = "Divides two numbers and returns the result number."
+        self.name = "add"
+        self.description = "Adds two numbers and returns the result number."
         self.parameters = {
             "type": "object",
             "properties": {
                 "a": {
                     "type": "number",
-                    "description": "The numerator.",
+                    "description": "The first number to add.",
                 },
-                "b": {"type": "number", "description": "The denominator."},
+                "b": {"type": "number", "description": "The second number to add."},
             },
             "required": ["a", "b"],
             "additionalProperties": False,
@@ -21,4 +21,4 @@ class DivisionTool(Tool):
         self.is_terminal = False
 
     async def run(self, a: int, b: int, **kwargs):
-        return a / b
+        return a + b

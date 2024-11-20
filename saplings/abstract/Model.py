@@ -3,8 +3,8 @@ from typing import List
 from abc import ABC, abstractmethod
 
 # Local
-from src.abstract import Tool
-from src.dtos import Message, ToolCall
+from saplings.abstract import Tool
+from saplings.dtos import Message, ToolCall
 
 
 class Model(ABC):

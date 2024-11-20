@@ -5,7 +5,7 @@ from typing import List, Union
 import json_repair
 
 # Local
-from src.dtos.ToolCall import ToolCall
+from saplings.dtos.ToolCall import ToolCall
 
 
 class Message(object):

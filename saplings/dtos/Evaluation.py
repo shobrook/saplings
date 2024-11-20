@@ -5,7 +5,7 @@ from typing import Optional
 import json_repair
 
 # Local
-from src.dtos.Message import Message
+from saplings.dtos.Message import Message
 
 
 class Evaluation(object):

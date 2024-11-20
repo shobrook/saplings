@@ -2,10 +2,10 @@
 from typing import List, Optional, Tuple
 
 # Local
-from src.abstract import Tool, Model
-from src.agents.Base import BaseAgent
-from src.dtos import Node, Message
-from src.prompts import AGENT_PROMPT
+from saplings.abstract import Tool, Model
+from saplings.agents.Base import BaseAgent
+from saplings.dtos import Node, Message
+from saplings.prompts import AGENT_PROMPT
 
 
 class COTAgent(BaseAgent):
