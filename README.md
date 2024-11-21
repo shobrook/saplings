@@ -1,10 +1,6 @@
-<div align="center">
-  <img width="308" src="./assets/logo.png" />
-</div>
+# 🌳 Saplings
 
----
-
-**Saplings is a plug-and-play framework for building agents that use search algorithms to complete tasks.**
+**A framework for building agents that use search algorithms to complete tasks.**
 
 By incorporating search, an agent can explore different tool-use trajectories and find the optimal path. This ability to look multiple steps ahead reduces errors and boosts overall task performance –– especially on complex reasoning problems, like code generation or navigating a website. With saplings, you can build search into your agents with just a couple lines of code.
 
