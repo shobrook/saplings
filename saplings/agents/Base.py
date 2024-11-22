@@ -45,7 +45,7 @@ class BaseAgent(object):
         bold_yellow = "\033[1;33m"
         reset = "\033[0m"
 
-        print(f"{bold_yellow}TREEACT LOG:{reset} {message}")
+        print(f"{bold_yellow}SAPLINGS LOG:{reset} {message}")
 
     def is_output_node(self, node: Node) -> bool:
         """

@@ -18,7 +18,7 @@ setup(
     description="Build smarter AI agents with tree search",
     long_description=readme,
     long_description_content_type="text/markdown",
-    version="v5.0.0",
+    version="v5.0.1",
     packages=["saplings"],
     python_requires=">=3",
     url="https://github.com/shobrook/saplings",
