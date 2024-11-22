@@ -1,22 +1,15 @@
-<div align="center">
-  <img width="308" src="./assets/logo.png" />
-</div>
+# 🌳 Saplings
 
----
+**Saplings is a framework for building agents that use search algorithms to solve problems.**
 
-**Saplings is a plug-and-play framework for building agents that use search algorithms to complete tasks.**
+Traditional agents fail because they can't recover from mistakes. Even a small error early in the loop can snowball and ruin the final output. But using search, agents can explore and evaluate different tool-use trajectories before choosing the best path. This ability to look multiple steps ahead helps agents avoid mistakes and boosts overall task performance, especially on complex reasoning problems (e.g. codegen, web navigation). With saplings, you can build search-enabled agents with just a couple lines of code.
 
-By incorporating search, an agent can explore different tool-use trajectories and find the optimal path. This ability to look multiple steps ahead reduces errors and boosts overall task performance –– especially on complex reasoning problems, like code generation or navigating a website. With saplings, you can build search into your agents with just a couple lines of code.
-
-- Supports popular search algorithms: **Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search**
-- Uses OpenAI function calling under the hood
+- Supports popular search algorithms: **Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.**
+- Uses OpenAI function calling under the hood.
 - Full control over the evaluation function, prompts, search parameters, etc.
+<!--- Lightweight and doesn't use LangChain. You can build an agent with literally two lines of code.-->
 
 ![Demo](./assets/demo.png)
-
-**Why add search?**
-
-Chain-of-thought/ReAct-style agents don't work well because they're vulnerable to compounding errors. Even a small mistake early in the loop can snowball and ruin the final output. Adding tree search gives your agent lookahead and backtracking abilities, making it easier to recover from such mistakes. And as compute becomes cheaper, it will become table stakes for agents to use inference-time search.
 
 ---
 
@@ -27,15 +20,15 @@ Chain-of-thought/ReAct-style agents don't work well because they're vulnerable t
 - [Docs](#docs)
   - [Agents](#agents)
     - [Parameters](#parameters)
-    - [`MonteCarloAgent`: Monte Carlo tree search](#montecarloagent-monte-carlo-tree-search)
-    - [`AStarAgent`: A\* search](astaragent-a-search)
-    - [`GreedyAgent`: Greedy best-first search](#greedyagent-greedy-best-first-serach)
-    - [`COTAgent`: Chain-of-thought (no search)](#cotagent-chain-of-thought-no-search)
+    - [MonteCarloAgent: Monte Carlo tree search](#montecarloagent-monte-carlo-tree-search)
+    - [AStarAgent: A\* search](astaragent-a-search)
+    - [GreedyAgent: Greedy best-first search](#greedyagent-greedy-best-first-serach)
+    - [COTAgent: Chain-of-thought (no search)](#cotagent-chain-of-thought-no-search)
   - [The `Message` object](#the-message-object)
   - [Termination conditions](#termination-conditions)
   - [Advanced tool options](#advanced-tool-options)
     - [Accessing agent memory](#accessing-agent-memory)
-    - [The `format_output()` method](#the-format_output-method)
+    - [Reformatting tool output](#reformatting-tool-output)
   - [Custom evaluators](#custom-evaluators)
 - [Roadmap](#roadmap)
 
@@ -178,11 +171,11 @@ Every agent in saplings has the same parameters, listed below:
 9. `tool_choice` ("auto" | "required"): Same as the `tool_choice` parameter in the OpenAI chat completions function. Indicates whether the model must _always_ call a tool, or if it can decide to generate a normal response instead.<!--TODO: Note that this changes the termination behavior of the agent-->
 10. `parallel_tool_calls` (bool): Same as the `parallel_tool_calls` parameter in the OpenAI chat completions function. Indicates whether the model can generate _multiple_ tool calls in a single completion request.
 
-#### `GreedyAgent`: Greedy best-first serach
+#### GreedyAgent: Greedy best-first serach
 
 This agent implements a greedy best-first search. It's the fastest and cheapest search agent, in terms of LLM calls, but it's also incapable of backtracking, thus making it the least effective agent. `GreedyAgent` works by taking the input and generating a set of candidate tool calls. It executes each tool call and evaluates their outputs. Then, it picks the best tool call based on its evaluation and generates a set of candidate _next_ tool calls. It repeats this process until a termination condition is met.
 
-#### `MonteCarloAgent`: Monte Carlo tree search
+#### MonteCarloAgent: Monte Carlo tree search
 
 ![Demo](./assets/mcts.png)
 
@@ -192,13 +185,13 @@ Note that, besides the parameters [listed above](#parameters), this agent has on
 
 1. `max_rollouts` (int, default = 10): This controls the maximum # of simulations the agent can perform.
 
-#### `AStarAgent`: A\* search
+#### AStarAgent: A\* search
 
 ![Demo](./assets/astar.gif)
 
 Implements a variation of the A\* pathfinding algorithm, based on the paper [Tree Search for Language Model Agents (Koh, et al.).](https://arxiv.org/abs/2407.01476) Unlike `GreedyAgent`, this agent makes more LLM calls in the worst case, but is capable of backtracking and recovering from mistakes. However, unlike `MonteCarloAgent`, it does not update its search strategy based on the trajectories it has already explored. Oftentimes, `AStarAgent` is the perfect middle-ground between `GreedyAgent` (dumb but fast) and `MonteCarloAgent` (smart but slow).
 
-#### `COTAgent`: Chain-of-thought (no search)
+#### COTAgent: Chain-of-thought (no search)
 
 This is a standard tool-calling agent and does not implement any search. It takes an input, calls a tool, then uses the tool output to inform the next tool call, and so on until a termination condition is met. Think of `COTAgent` as a baseline to compare your search agents to.
 
@@ -216,7 +209,7 @@ print(messages)
 # [{"role": "user", "content": "This is my prompt!"}, ..., {"role": "assistant", "content": "This is a response!"}]
 ```
 
-Message objects have only one additional attribute that OpenAI messages don't have. If a message represents a tool response, it will have a `raw_output` property that contains the output of that tool. What's stored here [may be different than](#the-format_output-method) the tool response that gets shown to the model, which is stored in the `content` property.
+Message objects have only one additional attribute that OpenAI messages don't have. If a message represents a tool response, it will have a `raw_output` property that contains the output of that tool. What's stored here [may be different than](#reformatting-tool-output) the tool response that gets shown to the model, which is stored in the `content` property.
 
 ### Termination conditions
 
@@ -238,7 +231,7 @@ Let's say you're building a Q&A agent and its equipped with a _terminal_ tool th
 
 In some cases, running your tool may depend on the output of the previous tools your agent has used, or the user input itself. If this is the case, you can access the agent's current search trajectory in the `run` method when you implement your tool. Simply use `kwargs.get("trajectory")`. This will return a list of [Message](#the-message-object) objects, which are wrappers around OpenAI messages.
 
-#### The `format_output()` method
+#### Reformatting tool output
 
 In some cases, it makes sense for the raw output of a tool to be separated from the output that's shown to the model. By default, the output of `run()` is what's shown to the model. But you can add the _optional_ `format_output` method to your tool class to change how the output is presented to the agent. For example, in our quickstart example, instead of seeing the multiplication result N, you might want the model to see "A \* B = N" so the agent can more easily keep track of what numbers have been multiplied. Here's how you'd modify the tool to do that:
 
@@ -282,7 +275,7 @@ class CustomEvaluator(Evaluator):
       return EvaluationDTO(score=1.0, reasoning="Justification goes here.")
 ```
 
-Note that the trajectory will always contain the original input message, every tool call, and every tool response. For the tool responses, you can access the raw output of the tool using the `Message.raw_output` property, discussed in more detail [here.](#the-format_output-method)
+Note that the trajectory will always contain the original input message, every tool call, and every tool response. For the tool responses, you can access the raw output of the tool using the `Message.raw_output` property, discussed in more detail [here.](#reformatting-tool-output)
 
 Each agent has a `threshold` parameter, which determines the minimum score at which to terminate the search and deem a trajectory as a _solution._ By default, it is 1.0, so you should keep this in mind when designing your evaluator.
 
