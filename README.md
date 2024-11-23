@@ -6,7 +6,7 @@
 - Supports popular search algorithms: Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.
 - Uses OpenAI function calling under the hood.
 - Full control over the evaluation function, prompts, search parameters, etc.
-- [Proven](https://arxiv.org/pdf/2310.04406) to boost reasoning and overall task performance compared to traditional, ReAct-style agents.
+- [Shown](https://arxiv.org/pdf/2310.04406) to boost reasoning and overall task performance compared to traditional, ReAct-style agents.
 
 ![Demo](./assets/demo.png)
 
