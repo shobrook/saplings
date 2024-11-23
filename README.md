@@ -2,14 +2,17 @@
 
 **Saplings is a framework for building agents that use search algorithms to solve problems.**
 
-Traditional agents fail because they can't recover from mistakes. Even a small error early in the loop can snowball and ruin the final output. But using search, agents can explore and evaluate different tool-use trajectories before choosing the best path. This ability to look multiple steps ahead helps agents avoid mistakes and boosts overall task performance, especially on complex reasoning problems (e.g. codegen, web navigation). With saplings, you can build search-enabled agents with just a couple lines of code.
-
-- Supports popular search algorithms: **Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.**
+- Very easy to use. You can add search to your agent in just two lines of code.
+- Supports popular search algorithms: Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.
 - Uses OpenAI function calling under the hood.
 - Full control over the evaluation function, prompts, search parameters, etc.
-<!--- Lightweight and doesn't use LangChain. You can build an agent with literally two lines of code.-->
+- [Proven](https://arxiv.org/pdf/2310.04406) to boost reasoning and overall task performance compared to traditional, ReAct-style agents.
 
 ![Demo](./assets/demo.png)
+
+**Why add search?**
+
+Traditional agents fail because they can't recover from mistakes. Even a small error early in the loop can snowball and ruin the final output. But with search, agents can explore and evaluate different tool-use trajectories before choosing the best path. This ability to look multiple steps ahead helps agents avoid mistakes and make better decisions, especially on complex reasoning tasks (e.g. codegen, web navigation). And as compute gets cheaper, it will become table stakes for agents to use inference-time search.
 
 ---
 
