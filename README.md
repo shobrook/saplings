@@ -54,7 +54,7 @@ model = OpenAI(model="gpt-4o", api_key="YOUR_API_KEY")
 evaluator = Evaluator(model)
 tools = [MultiplicationTool()]
 
-agent = MonteCarloAgent(tools, model, evaluator)
+agent = AStarAgent(tools, model, evaluator)
 messages, _, _ = agent.run("Let x = 9418.343 * 8.11 and y = 2x. Calculate (xy)(x^2).")
 ```
 
@@ -140,7 +140,7 @@ The default evaluator provided by saplings uses a LLM (i.e. the `model` you pass
 Once your tools, model, and evaluator are ready, you can simply plug them into a saplings agent. There are multiple to choose from, each implementing their own tree search algorithm: `MonteCarloAgent`, `AStarAgent`, and `GreedyAgent`. There's also a regular chain-of-thought agent available, `COTAgent`, which does not implement any search. Each agent has their own advantages and disadvantages, which you can read about [here](#agents).
 
 ```python
-from treeact import MonteCarloAgent
+from saplings import MonteCarloAgent
 
 agent = MonteCarloAgent(tools, model, evaluator)
 ```
@@ -239,7 +239,9 @@ In some cases, running your tool may depend on the output of the previous tools 
 In some cases, it makes sense for the raw output of a tool to be separated from the output that's shown to the model. By default, the output of `run()` is what's shown to the model. But you can add the _optional_ `format_output` method to your tool class to change how the output is presented to the agent. For example, in our quickstart example, instead of seeing the multiplication result N, you might want the model to see "A \* B = N" so the agent can more easily keep track of what numbers have been multiplied. Here's how you'd modify the tool to do that:
 
 ```python
-class MultiplicationTool(object):
+from saplings.abstract import Tool
+
+class MultiplicationTool(Tool):
    ...
 
    async def run(self, a, b, **kwargs):
