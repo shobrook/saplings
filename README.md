@@ -48,13 +48,13 @@ Below is a simple agent implementing Monte Carlo tree search (MCTS). It's equipp
 ```python
 from saplings.examples import MultiplicationTool
 from saplings.llms import OpenAI
-from saplings import AStarAgent, Evaluator
+from saplings import MonteCarloAgent, Evaluator
 
 model = OpenAI(model="gpt-4o", api_key="YOUR_API_KEY")
 evaluator = Evaluator(model)
 tools = [MultiplicationTool()]
 
-agent = AStarAgent(tools, model, evaluator)
+agent = MonteCarloAgent(tools, model, evaluator)
 messages, _, _ = agent.run("Let x = 9418.343 * 8.11 and y = 2x. Calculate (xy)(x^2).")
 ```
 
