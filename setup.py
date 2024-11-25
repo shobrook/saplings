@@ -25,7 +25,9 @@ setup(
     author="shobrook",
     author_email="shobrookj@gmail.com",
     # classifiers=[],
-    install_requires=[],
+    install_requires=[
+        "json_repair",
+    ],
     keywords=[
         "llm",
         "agent",
