@@ -18,7 +18,7 @@ setup(
     description="Build smarter AI agents with tree search",
     long_description=readme,
     long_description_content_type="text/markdown",
-    version="v5.0.1",
+    version="v5.0.2",
     packages=["saplings"],
     python_requires=">=3",
     url="https://github.com/shobrook/saplings",
@@ -26,7 +26,9 @@ setup(
     author_email="shobrookj@gmail.com",
     # classifiers=[],
     install_requires=[
-        "json_repair",
+        "json-repair",
+        "openai",
+        "tiktoken",
     ],
     keywords=[
         "llm",
