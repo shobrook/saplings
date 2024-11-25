@@ -265,19 +265,19 @@ The `Evaluator` object has the following parameters:
 2. `n_samples` (int): The number of scores to generate for a given trajectory. Equivalent to the `n` parameter in an OpenAI chat completion. If it's greater than 1, multiple candidate scores will be generated for a given trajectory and then averaged to return the final score. Making this greater than 1 is equivalent to enabling [self-consistency](https://arxiv.org/pdf/2203.11171) in the evaluation process.
 3. `prompt` (str): The system prompt that tells the model how it should evaluate a trajectory and generate a score.
 
-In most cases, simply customizing this object will be sufficient, but in some situations it makes sense to build your own evaluator. For example, if you're building a coding agent, you may want to evaluate a search trajectory using some external feedback, such as whether the code compiles or whether a set of unit tests are passing. To build a custom evaluator, you must extend the `Evaluator` base class and implement a `run` method. This method must take in a list of [Message](#the-message-object) objects as input, representing a search trajectory, and return an [`EvaluationDTO` object](https://github.com/shobrook/saplings/blob/master/src/dtos/Evaluation.py) as output. This object has two properties: `score` (a value between 0 and 1) and `reasoning` (an _optional_ string with written justification for the score).
+In most cases, simply customizing this object will be sufficient, but in some situations it makes sense to build your own evaluator. For example, if you're building a coding agent, you may want to evaluate a search trajectory using some external feedback, such as whether the code compiles or whether a set of unit tests are passing. To build a custom evaluator, you must extend the `Evaluator` base class and implement a `run` method. This method must take in a list of [Message](#the-message-object) objects as input, representing a search trajectory, and return an [`Evaluation` object](https://github.com/shobrook/saplings/blob/master/src/dtos/Evaluation.py) as output. This object has two properties: `score` (a value between 0 and 1) and `reasoning` (an _optional_ string with written justification for the score).
 
 ```python
 from saplings.abstract import Evaluator
-from saplings.dtos import EvaluationDTO
+from saplings.dtos import Evaluation
 
 class CustomEvaluator(Evaluator):
    def __init__(self):
       pass
 
-   async def run(self, trajectory: List[Message]) -> EvaluationDTO:
+   async def run(self, trajectory: List[Message]) -> Evaluation:
       # Implement this
-      return EvaluationDTO(score=1.0, reasoning="Justification goes here.")
+      return Evaluation(score=1.0, reasoning="Justification goes here.")
 ```
 
 Note that the trajectory will always contain the original input message, every tool call, and every tool response. For the tool responses, you can access the raw output of the tool using the `Message.raw_output` property, discussed in more detail [here.](#reformatting-tool-output)
