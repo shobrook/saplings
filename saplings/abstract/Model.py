@@ -3,8 +3,12 @@ from typing import List
 from abc import ABC, abstractmethod
 
 # Local
-from saplings.abstract import Tool
-from saplings.dtos import Message, ToolCall
+try:
+    from saplings.abstract import Tool
+    from saplings.dtos import Message, ToolCall
+except ImportError:
+    from Tool import Tool
+    from dtos import Message, ToolCall
 
 
 class Model(ABC):

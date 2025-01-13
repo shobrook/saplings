@@ -7,8 +7,12 @@ import tiktoken
 from openai import AsyncOpenAI, OpenAI as SyncOpenAI
 
 # Local
-from saplings.abstract import Model, Tool
-from saplings.dtos import Message, ToolCall
+try:
+    from saplings.abstract import Model, Tool
+    from saplings.dtos import Message, ToolCall
+except ImportError:
+    from abstract import Model, Tool
+    from dtos import Message, ToolCall
 
 
 #########

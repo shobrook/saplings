@@ -1,5 +1,8 @@
 # Local
-from saplings.abstract import Tool
+try:
+    from saplings.abstract import Tool
+except ImportError:
+    from abstract import Tool
 
 
 class DivisionTool(Tool):

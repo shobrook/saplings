@@ -3,10 +3,16 @@ from statistics import mean
 from typing import List, Optional
 
 # Local
-from saplings.abstract import Model
-from saplings.dtos import Message, Evaluation
-from saplings.llms import OpenAI
-from saplings.prompts import EVAL_PROMPT
+try:
+    from saplings.abstract import Model
+    from saplings.dtos import Message, Evaluation
+    from saplings.llms import OpenAI
+    from saplings.prompts import EVAL_PROMPT
+except ImportError:
+    from abstract import Model
+    from dtos import Message, Evaluation
+    from llms import OpenAI
+    from prompts import EVAL_PROMPT
 
 
 class Evaluator(object):

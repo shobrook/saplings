@@ -4,10 +4,16 @@ from math import inf
 from typing import List, Optional, Tuple
 
 # Local
-from saplings.abstract import Tool, Model, Evaluator
-from saplings.agents.Base import BaseAgent
-from saplings.dtos import Message, Node
-from saplings.prompts import AGENT_PROMPT
+try:
+    from saplings.abstract import Tool, Model, Evaluator
+    from saplings.agents.Base import BaseAgent
+    from saplings.dtos import Message, Node
+    from saplings.prompts import AGENT_PROMPT
+except ImportError:
+    from abstract import Tool, Model, Evaluator
+    from agents.Base import BaseAgent
+    from dtos import Message, Node
+    from prompts import AGENT_PROMPT
 
 
 class AStarAgent(BaseAgent):

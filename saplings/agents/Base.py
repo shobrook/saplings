@@ -5,11 +5,18 @@ from collections import defaultdict
 from typing import List, Optional
 
 # Local
-from saplings.evaluator import Evaluator
-from saplings.abstract import Model, Tool, Evaluator as BaseEvaluator
-from saplings.dtos import Message, Node
-from saplings.llms import OpenAI
-from saplings.prompts import AGENT_PROMPT
+try:
+    from saplings.evaluator import Evaluator
+    from saplings.abstract import Model, Tool, Evaluator as BaseEvaluator
+    from saplings.dtos import Message, Node
+    from saplings.llms import OpenAI
+    from saplings.prompts import AGENT_PROMPT
+except ImportError:
+    from evaluator import Evaluator
+    from abstract import Model, Tool, Evaluator as BaseEvaluator
+    from dtos import Message, Node
+    from llms import OpenAI
+    from prompts import AGENT_PROMPT
 
 
 class BaseAgent(object):

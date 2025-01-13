@@ -4,8 +4,12 @@ from collections import deque
 from typing import Generator, List, Optional
 
 # Local
-from saplings.dtos.Message import Message
-from saplings.dtos.Evaluation import Evaluation
+try:
+    from saplings.dtos.Message import Message
+    from saplings.dtos.Evaluation import Evaluation
+except ImportError:
+    from dtos.Message import Message
+    from dtos.Evaluation import Evaluation
 
 
 class Node(object):
