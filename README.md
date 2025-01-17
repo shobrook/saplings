@@ -1,18 +1,24 @@
 # 🌳 Saplings
 
-**Saplings is a framework for building agents that use search algorithms to solve problems.**
+**Saplings lets you build agents that use tree search to improve reasoning. Think of it as _tree-of-thoughts_ meets _tool use._**
 
-- Very easy to use. You can add search to your agent in just two lines of code.
-- Supports popular search algorithms: Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.
+Using tree search, an agent can explore and evaluate different tool-use trajectories before choosing the best path. This ability to look multiple steps ahead reduces mistakes and boosts overall task performance compared to traditional chain-of-thought agents. E.g. the [MCTS agent](#montecarloagent-monte-carlo-tree-search) is SOTA for programming on HumanEval, and the [A* agent](#astaragent-a-search) is SOTA for web navigation on VisualWebArena.
+
+**Features:**
+
+- Plug-and-play. You can build a smarter agent with just two lines of code.
+- Supports Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.
 - Uses OpenAI function calling under the hood.
-- Full control over the evaluation function, prompts, search parameters, etc.
-- [Shown](https://arxiv.org/pdf/2310.04406) to boost reasoning and overall task performance compared to traditional, ReAct-style agents.
+- Full control over the value function, search parameters, prompts, etc.
+- No LangChain or silly abstractions.
+
+<!--Saplings agents are SOTA on X and Y tasks.-->
 
 ![Demo](./assets/demo.png)
 
-**Why add search?**
+<!--Traditional agents fail because they can't recover from mistakes. Even a small error early in the loop can snowball and ruin the final output.-->
 
-Traditional agents fail because they can't recover from mistakes. Even a small error early in the loop can snowball and ruin the final output. But with search, agents can explore and evaluate different tool-use trajectories before choosing the best path. This ability to look multiple steps ahead helps agents avoid mistakes and make better decisions, especially on complex reasoning tasks (e.g. codegen, web navigation). And as compute gets cheaper, it will become table stakes for agents to use inference-time search.
+<!--TODO: Build a simple visualizer like this: https://www.llm-reasoners.net/visualizer/709cb8d3-f6da-49be-b705-549fbfc44bf9?accessKey=b5681f71 -->
 
 ---
 
@@ -287,12 +293,12 @@ Each agent has a `threshold` parameter, which determines the minimum score at wh
 ## Roadmap
 
 1. Support for chat history
-2. Support for Anthropic and Groq models
+2. Support for Anthropic, Groq, and local models
 3. Allow dynamic system prompts and tool schemas (i.e. prompts that change as the agent progresses)
 4. Support for vision agents
 5. Add an `llm_call_budget` parameter to every agent
 
-**Mission:** More inference-time compute makes agents smarter. And as models get cheaper and faster, search will become more viable to use in production. Let's build the easiest and most powerful framework for building search-enabled agents.
+In general, as inference gets cheaper and faster, it will become table stakes for agents to use search.
 
 ## Note from the author
 
