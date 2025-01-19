@@ -32,6 +32,7 @@ class BaseAgent(object):
         verbose: bool = True,
         tool_choice: str = "auto",  # or "required"
         parallel_tool_calls: bool = False,
+        update_prompt: Optional[callable] = None,
     ):
         self.tools = tools
         self.model = model if model else OpenAI()
@@ -44,6 +45,7 @@ class BaseAgent(object):
         self.tool_choice = tool_choice
         self.parallel_tool_calls = parallel_tool_calls
         self.max_tool_call_tokens = 2048
+        self.update_system_prompt = update_prompt if update_prompt else lambda t: prompt
 
     def log(self, message: str):
         if not self.verbose:
@@ -162,6 +164,15 @@ class BaseAgent(object):
 
         raise ValueError(f"Tool with name '{name}' not found.")
 
+    def update_prompts(self, trajectory: List[Message]):
+        """
+        Updates tool prompts and system prompt based on the current trajectory.
+        """
+
+        self.prompt = self.update_system_prompt(trajectory)
+        for tool in self.tools:
+            tool.update_definition(trajectory)
+
     async def generate_candidates(
         self, node: Node, n: Optional[int] = None
     ) -> List[Message]:
@@ -235,7 +246,7 @@ class BaseAgent(object):
 
         return tool_response
 
-    async def evaluate(self, node: Node) -> Node:
+    async def evaluate(self, node: Node, messages: List[Message] = []) -> Node:
         """
         Evaluates a node in the search tree. If a custom evaluator is not provided,
         the LLM self-evaluates the node.
@@ -244,7 +255,7 @@ class BaseAgent(object):
         # TODO: If self.is_output_node(node), should we only evaluate the message(s) in that node?
         # Or evaluate the whole trajectory? For now, we are evaluating the whole trajectory.
 
-        trajectory = node.get_trajectory()
+        trajectory = messages + node.get_trajectory()
         evaluation = await self.evaluator.run(trajectory)
         node.set_evaluation(evaluation)
 
@@ -256,15 +267,20 @@ class BaseAgent(object):
 
         return node
 
-    async def expand(self, node: Node, run_eval=True) -> List[Node]:
+    async def expand(
+        self, node: Node, messages: List[Message], run_eval=True
+    ) -> List[Node]:
         if self.is_terminal_node(node):
             self.log(f"\033[1;31mReached terminal node\033[0m\n\n{node}\n")
             return []
 
         self.log(f"Expanding node\n\n{node}\n")
 
+        # Update prompts based on current trajectory
+        trajectory = messages + node.get_trajectory()
+        self.update_prompts(trajectory)
+
         # Generate candidate next tool calls, execute each
-        trajectory = node.get_trajectory()
         tool_calls = await self.generate_candidates(node)
         tasks = [
             self.execute_tool_call(tool_call, trajectory) for tool_call in tool_calls
@@ -279,7 +295,7 @@ class BaseAgent(object):
 
         # Evaluate each child
         if run_eval:
-            tasks = [self.evaluate(child) for child in children]
+            tasks = [self.evaluate(child, messages) for child in children]
             await asyncio.gather(*tasks)
 
         self.log(
@@ -293,14 +309,14 @@ class BaseAgent(object):
 
         return children
 
-    def run(self, prompt: str, **kwargs) -> any:
+    def run(self, prompt: str, messages: List[Message] = [], **kwargs) -> any:
         loop = asyncio.new_event_loop()
         result = None
 
         def _run():
             nonlocal result
             asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(self.run_async(prompt, **kwargs))
+            result = loop.run_until_complete(self.run_async(prompt, messages, **kwargs))
             loop.close()
 
         thread = threading.Thread(target=_run)

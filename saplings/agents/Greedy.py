@@ -27,6 +27,7 @@ class GreedyAgent(BaseAgent):
         verbose: bool = True,
         tool_choice: str = "auto",
         parallel_tool_calls: bool = False,
+        update_prompt: Optional[callable] = None,
     ):
         super().__init__(
             tools,
@@ -39,17 +40,20 @@ class GreedyAgent(BaseAgent):
             verbose,
             tool_choice,
             parallel_tool_calls,
+            update_prompt,
         )
 
     def should_terminate(self, node: Node) -> bool:
         return self.is_terminal_node(node)
 
-    async def run_async(self, prompt: str) -> Tuple[List[Message], float, bool]:
+    async def run_async(
+        self, prompt: str, messages: List[Message] = []
+    ) -> Tuple[List[Message], float, bool]:
         self.log(f"Running a greedy best-first search\n\n\033[37m{prompt}\033[0m\n")
 
         best_node = Node([Message.user(prompt)])
         while not self.should_terminate(best_node):
-            await self.expand(best_node)
+            await self.expand(best_node, messages)
             best_node = self.get_best_node(best_node)
 
         messages, score, is_solution = (

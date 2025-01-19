@@ -29,6 +29,7 @@ class AStarAgent(BaseAgent):
         verbose: bool = True,
         tool_choice: str = "auto",
         parallel_tool_calls: bool = False,
+        update_prompt: Optional[callable] = None,
     ):
         super().__init__(
             tools,
@@ -41,12 +42,15 @@ class AStarAgent(BaseAgent):
             verbose,
             tool_choice,
             parallel_tool_calls,
+            update_prompt,
         )
 
     def should_terminate(self, node: Node) -> bool:
         return self.is_solution_node(node)
 
-    async def run_async(self, prompt: str) -> Tuple[List[Message], float, bool]:
+    async def run_async(
+        self, prompt: str, messages: List[Message] = []
+    ) -> Tuple[List[Message], float, bool]:
         # Max priority queue
         root_node = Node([Message.user(prompt)])
         best_score = -inf  # Negative scores for max behavior
@@ -71,7 +75,7 @@ class AStarAgent(BaseAgent):
                 break
 
             # Expand the current node, add children to the frontier
-            children = await self.expand(curr_node)
+            children = await self.expand(curr_node, messages)
             for child in children:
                 heapq.heappush(frontier, (-child.score, child))
         else:

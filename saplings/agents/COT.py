@@ -24,6 +24,7 @@ class COTAgent(BaseAgent):
         verbose: bool = True,
         tool_choice: str = "auto",
         parallel_tool_calls: bool = False,
+        update_prompt: Optional[callable] = None,
     ):
         super().__init__(
             tools,
@@ -36,17 +37,20 @@ class COTAgent(BaseAgent):
             verbose=verbose,
             tool_choice=tool_choice,
             parallel_tool_calls=parallel_tool_calls,
+            update_prompt=update_prompt,
         )
 
     def should_terminate(self, node: Node) -> bool:
         return self.is_terminal_node(node)
 
-    async def run_async(self, prompt: str) -> Tuple[List[Message], float, bool]:
+    async def run_async(
+        self, prompt: str, messages: List[Message] = []
+    ) -> Tuple[List[Message], float, bool]:
         self.log(f"Running a ReAct sequence (no search)\n\n\033[37m{prompt}\033[0m\n")
 
         curr_node = Node([Message.user(prompt)])
         while not self.should_terminate(curr_node):
-            await self.expand(curr_node, run_eval=False)
+            await self.expand(curr_node, messages, run_eval=False)
             curr_node = curr_node.children[0]
 
         messages = curr_node.get_trajectory()

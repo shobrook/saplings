@@ -1,5 +1,12 @@
 # Standard library
+from typing import List
 from abc import ABC, abstractmethod
+
+# Local
+try:
+    from saplings.dtos import Message
+except ImportError:
+    from dtos import Message
 
 
 class Tool(ABC):
@@ -13,6 +20,9 @@ class Tool(ABC):
     @abstractmethod
     async def run(self, **kwargs) -> any:
         return None
+
+    def update_definition(self, trajectory: List[Message] = [], **kwargs):
+        pass
 
     def format_output(self, output: any) -> str:
         return str(output)
