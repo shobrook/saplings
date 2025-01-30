@@ -1,18 +1,16 @@
 # 🌳 Saplings
 
-**Saplings lets you build agents that use tree search to improve reasoning. Think of it as _tree-of-thoughts_ meets _tool use._**
+**Saplings lets you add reasoning to your agents using tree search.**
 
-Using tree search, an agent can explore and evaluate different tool-use trajectories before choosing the best path. This ability to look multiple steps ahead reduces mistakes and boosts overall task performance compared to traditional chain-of-thought agents. E.g. the [MCTS agent](#montecarloagent-monte-carlo-tree-search) is SOTA for programming on HumanEval, and the [A* agent](#astaragent-a-search) is SOTA for web navigation on VisualWebArena.
+Think of this as _tree-of-thoughts_ meets _tool use._ Using tree search, an agent can explore and evaluate different tool-use trajectories before choosing the best path. Looking multiple steps ahead reduces mistakes and boosts overall task performance compared to traditional chain-of-thought. For example, tree search yields [SOTA performance on HumanEval (coding)](https://arxiv.org/pdf/2310.04406) and [VisualWebArena (web navigation).](https://arxiv.org/pdf/2407.01476)
 
 **Features:**
 
-- Plug-and-play. You can build a smarter agent with just two lines of code.
-- Supports Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.
-- Uses OpenAI function calling under the hood.
-- Full control over the value function, search parameters, prompts, etc.
+- Plug-and-play. Build a smarter agent with just a couple lines of code.
+- Supports popular search algorithms: Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.
+- Uses function calling under the hood.
+- Customize the value function, prompts, search parameters, etc.
 - No LangChain or silly abstractions.
-
-<!--Saplings agents are SOTA on X and Y tasks.-->
 
 ![Demo](./assets/demo.png)
 
