@@ -1,6 +1,6 @@
 # 🌳 Saplings
 
-**Saplings lets you build agents that conduct complex reasoning using tree search.**
+**Saplings lets you build agents that reason using tree search.**
 
 Think of this as _tree-of-thoughts_ meets _tool use._ With tree search, an agent can explore and evaluate different tool-use trajectories before choosing the optimal path. Looking multiple steps ahead reduces mistakes and boosts overall task performance compared to traditional chain-of-thought. For example, agents equipped with search achieve SOTA performance on [HumanEval (coding)](https://arxiv.org/pdf/2310.04406) and [VisualWebArena (web navigation).](https://arxiv.org/pdf/2407.01476)
 
