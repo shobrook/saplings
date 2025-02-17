@@ -3,6 +3,6 @@ try:
     from saplings.abstract.Model import Model
     from saplings.abstract.Evaluator import Evaluator
 except ImportError:
-    from .Tool import Tool
-    from .Model import Model
-    from .Evaluator import Evaluator
+    from abstract.Tool import Tool
+    from abstract.Model import Model
+    from abstract.Evaluator import Evaluator

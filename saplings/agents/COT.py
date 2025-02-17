@@ -45,7 +45,7 @@ class COTAgent(BaseAgent):
 
     async def run_async(
         self, prompt: str, messages: List[Message] = []
-    ) -> Tuple[List[Message], float, bool]:
+    ) -> List[Message]:
         self.log(f"Running a ReAct sequence (no search)\n\n\033[37m{prompt}\033[0m\n")
 
         curr_node = Node([Message.user(prompt)])

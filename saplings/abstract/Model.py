@@ -7,7 +7,7 @@ try:
     from saplings.abstract import Tool
     from saplings.dtos import Message, ToolCall
 except ImportError:
-    from Tool import Tool
+    from abstract.Tool import Tool
     from dtos import Message, ToolCall
 
 

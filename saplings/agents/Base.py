@@ -12,11 +12,11 @@ try:
     from saplings.llms import OpenAI
     from saplings.prompts import AGENT_PROMPT
 except ImportError:
-    from evaluator import Evaluator
-    from abstract import Model, Tool, Evaluator as BaseEvaluator
-    from dtos import Message, Node
     from llms import OpenAI
+    from dtos import Message, Node
+    from evaluator import Evaluator
     from prompts import AGENT_PROMPT
+    from abstract import Model, Tool, Evaluator as BaseEvaluator
 
 
 class BaseAgent(object):

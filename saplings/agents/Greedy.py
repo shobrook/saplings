@@ -3,15 +3,15 @@ from typing import List, Optional, Tuple
 
 # Local
 try:
-    from saplings.abstract import Tool, Model, Evaluator
-    from saplings.agents.Base import BaseAgent
     from saplings.dtos import Node, Message
     from saplings.prompts import AGENT_PROMPT
+    from saplings.agents.Base import BaseAgent
+    from saplings.abstract import Tool, Model, Evaluator
 except ImportError:
-    from abstract import Tool, Model, Evaluator
-    from agents.Base import BaseAgent
     from dtos import Node, Message
     from prompts import AGENT_PROMPT
+    from agents.Base import BaseAgent
+    from abstract import Tool, Model, Evaluator
 
 
 class GreedyAgent(BaseAgent):
