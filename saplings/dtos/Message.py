@@ -5,7 +5,10 @@ from typing import List, Union
 import json_repair
 
 # Local
-from saplings.dtos.ToolCall import ToolCall
+try:
+    from saplings.dtos.ToolCall import ToolCall
+except ImportError:
+    from dtos.ToolCall import ToolCall
 
 
 class Message(object):
@@ -77,7 +80,7 @@ class Message(object):
         return message
 
     def __repr__(self):
-        self.__str__()
+        return self.__str__()
 
     def __str__(self):
         bold = "\033[1m"
