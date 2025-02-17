@@ -1,8 +1,16 @@
 # 🌳 Saplings
 
-**Saplings lets you add reasoning to your agents using tree search.**
+**Saplings lets you build agents that reason using tree search.**
 
-Think of this as _tree-of-thoughts_ meets _tool use._ Using tree search, an agent can explore and evaluate different tool-use trajectories before choosing the best path. Looking multiple steps ahead reduces mistakes and boosts overall task performance compared to traditional chain-of-thought. For example, tree search yields [SOTA performance on HumanEval (coding)](https://arxiv.org/pdf/2310.04406) and [VisualWebArena (web navigation).](https://arxiv.org/pdf/2407.01476)
+
+Think of this as _tree-of-thoughts_ meets _tool use._ With tree search, an agent can explore and evaluate different tool-use trajectories before choosing the optimal path. This ability to look multiple steps ahead and backtrack reduces mistakes and boosts reasoning compared to traditional CoT/ReAct-style agents.
+
+Agents that use tree search achieve SOTA on tasks like:
+* **Coding:** [92.7% on HumanEval](https://arxiv.org/pdf/2310.04406) using MCTS
+* **Q&A/RAG:** [63% on HotPotQA](https://arxiv.org/pdf/2310.04406) using MCTS
+* **Web Navigation:** [26.4% on VisualWebArena](https://arxiv.org/pdf/2407.01476) using A*
+
+<!--TODO: Show the before and after tree search scores on the tasks listed above-->
 
 **Features:**
 
@@ -46,6 +54,20 @@ $ pip install saplings
 ```
 
 ## Quickstart
+
+<!--Let's build an agent that uses a web search tool to complete tasks. Our agent will be equipped with Monte Carlo Tree Search (MCTS) as a reasoning algorithm.
+
+```python
+from saplings.examples import WebSearchTool
+from saplings import MonteCarloAgent, Evaluator, OpenAI
+
+model = OpenAI(model="gpt-4o")
+evaluator = Evaluator(model)
+tools = [WebSearchTool()]
+
+agent = MonteCarloAgent(tools, model, evaluator)
+messages, _, _ = agent.run("Create a table comparing ancient astronomical tools with their origin, accuracy, and modern equivalents.")
+```-->
 
 Below is a simple agent implementing Monte Carlo tree search (MCTS). It's equipped with a multiplication tool to solve tricky arithmetic problems.
 
