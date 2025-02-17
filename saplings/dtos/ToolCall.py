@@ -23,7 +23,7 @@ class ToolCall(object):
         return hash((self.name, sorted_arguments))
 
     def __repr__(self):
-        self.__str__()
+        return self.__str__()
 
     def __str__(self):
         return f"{self.name}({self.arguments})"
