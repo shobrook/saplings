@@ -168,7 +168,7 @@ class BaseAgent(object):
             tool.update_definition(trajectory)
 
     async def generate_candidates(
-        self, node: Node, n: Optional[int] = None
+        self, node: Node, messages: List[Message], n: Optional[int] = None
     ) -> List[Message]:
         """
         Generates plausible next tool calls to take in a given trajectory.
@@ -182,7 +182,7 @@ class BaseAgent(object):
         n = n if n else self.b_factor
 
         # Get active tools
-        trajectory = node.get_trajectory()
+        trajectory = messages + node.get_trajectory()
         tools = [tool for tool in self.tools if tool.is_active(trajectory)]
         tool_schemas = [tool.get_schema() for tool in tools]
 
@@ -192,7 +192,7 @@ class BaseAgent(object):
             self.model.count_message_tokens(system_message) + self.max_tool_call_tokens
         )
         messages = [system_message] + self.model.truncate_messages(
-            node.get_trajectory(), headroom, tools
+            trajectory, headroom, tools
         )
         response = await self.model.run_async(
             messages,
@@ -280,7 +280,7 @@ class BaseAgent(object):
         self.update_prompts(trajectory)
 
         # Generate candidate next tool calls, execute each
-        tool_calls = await self.generate_candidates(node)
+        tool_calls = await self.generate_candidates(node, messages)
         tasks = [
             self.execute_tool_call(tool_call, trajectory) for tool_call in tool_calls
         ]
