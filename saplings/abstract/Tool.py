@@ -21,7 +21,10 @@ class Tool(ABC):
     async def run(self, **kwargs) -> any:
         return None
 
-    def update_definition(self, trajectory: List[Message] = [], **kwargs):
+    def is_active(self, trajectory: List[Message] = [], **kwargs) -> bool:
+        return True
+
+    def update_definition(self, trajectory: List[Message] = [], **kwargs) -> any:
         pass
 
     def format_output(self, output: any) -> str:

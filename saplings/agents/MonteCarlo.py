@@ -63,12 +63,16 @@ class MonteCarloAgent(BaseAgent):
         # TODO: If this root tool call is wrong, then the whole search tree is screwed.
         # We should use the prompt as the root node and start the search by expanding that.
 
+        # Get active tools
+        tools = [tool for tool in self.tools if tool.is_active(messages)]
+        tool_schemas = [tool.get_schema() for tool in tools]
+
         # Generate the first tool call
         system_message = Message.system(self.prompt)
         user_message = Message.user(prompt)
         response = await self.model.run_async(
             [system_message] + messages + [user_message],
-            tools=self.get_tool_schemas(),
+            tools=tool_schemas,
             parallel_tool_calls=False,
             tool_choice="required",
             max_tokens=self.max_tool_call_tokens,

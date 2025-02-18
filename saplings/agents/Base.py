@@ -108,6 +108,7 @@ class BaseAgent(object):
         which means the model can choose to generate a response.
         """
 
+        # TODO: Should we only consider active tools?
         for tool in self.tools:
             if tool.is_terminal:
                 return True
@@ -146,13 +147,6 @@ class BaseAgent(object):
 
         return best_node
 
-    def get_tool_schemas(self) -> List[dict]:
-        """
-        Used to prepare tools for the LLM.
-        """
-
-        return [tool.get_schema() for tool in self.tools]
-
     def get_tool_by_name(self, name: str) -> Tool:
         """
         Gets a tool object by its name.
@@ -187,17 +181,22 @@ class BaseAgent(object):
         # No. of candidates to generate
         n = n if n else self.b_factor
 
+        # Get active tools
+        trajectory = node.get_trajectory()
+        tools = [tool for tool in self.tools if tool.is_active(trajectory)]
+        tool_schemas = [tool.get_schema() for tool in tools]
+
         # Generate tool calls
         system_message = Message.system(self.prompt)
         headroom = (
             self.model.count_message_tokens(system_message) + self.max_tool_call_tokens
         )
         messages = [system_message] + self.model.truncate_messages(
-            node.get_trajectory(), headroom, self.tools
+            node.get_trajectory(), headroom, tools
         )
         response = await self.model.run_async(
             messages,
-            tools=self.get_tool_schemas(),
+            tools=tool_schemas,
             parallel_tool_calls=self.parallel_tool_calls,
             tool_choice=self.tool_choice,
             max_tokens=self.max_tool_call_tokens,
