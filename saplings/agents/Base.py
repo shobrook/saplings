@@ -322,3 +322,27 @@ class BaseAgent(object):
         thread.start()
         thread.join()
         return result
+
+    async def call_tool(self, tool_name: str, messages: List[Message] = []) -> Message:
+        system_message = Message.system(self.prompt)
+        headroom = (
+            self.model.count_message_tokens(system_message) + self.max_tool_call_tokens
+        )
+        messages = [system_message] + self.model.truncate_messages(
+            messages, headroom, self.tools
+        )
+        response = await self.model.run_async(
+            messages,
+            tools=[tool.get_schema() for tool in self.tools],
+            parallel_tool_calls=self.parallel_tool_calls,
+            tool_choice={"type": "function", "function": {"name": tool_name}},
+            max_tokens=self.max_tool_call_tokens,
+            n=1,
+            temperature=1.0,
+        )
+        return Message.from_openai_message(response)
+
+    async def run_tool(
+        self, tool_call: Message, messages: List[Message] = []
+    ) -> Message:
+        return await self.execute_tool_call(tool_call, messages)
