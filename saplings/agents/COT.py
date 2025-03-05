@@ -1,13 +1,15 @@
 # Standard library
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 # Local
 try:
-    from saplings.abstract import Tool, Model
+    from saplings.model import Model
+    from saplings.abstract import Tool
     from saplings.agents.Base import BaseAgent
     from saplings.dtos import Node, Message
     from saplings.prompts import AGENT_PROMPT
 except ImportError:
+    from model import Model
     from abstract import Tool, Model
     from agents.Base import BaseAgent
     from dtos import Node, Message
@@ -18,7 +20,7 @@ class COTAgent(BaseAgent):
     def __init__(
         self,
         tools: List[Tool],
-        model: Optional[Model] = None,
+        model: Model,
         prompt: str = AGENT_PROMPT,
         max_depth: int = 5,
         verbose: bool = True,

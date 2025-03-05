@@ -2,13 +2,13 @@
 
 **Saplings lets you build agents that reason using tree search.**
 
-
 Think of this as _tree-of-thoughts_ meets _tool use._ With tree search, an agent can explore and evaluate different tool-use trajectories before choosing the optimal path. This ability to look multiple steps ahead and backtrack reduces mistakes and boosts reasoning compared to traditional CoT/ReAct-style agents.
 
 Agents that use tree search achieve SOTA on tasks like:
-* **Coding:** [92.7% on HumanEval](https://arxiv.org/pdf/2310.04406) using MCTS
-* **Q&A/RAG:** [63% on HotPotQA](https://arxiv.org/pdf/2310.04406) using MCTS
-* **Web Navigation:** [26.4% on VisualWebArena](https://arxiv.org/pdf/2407.01476) using A*
+
+- **Coding:** [92.7% on HumanEval](https://arxiv.org/pdf/2310.04406) using MCTS
+- **Q&A/RAG:** [63% on HotPotQA](https://arxiv.org/pdf/2310.04406) using MCTS
+- **Web Navigation:** [26.4% on VisualWebArena](https://arxiv.org/pdf/2407.01476) using A\*
 
 <!--TODO: Show the before and after tree search scores on the tasks listed above-->
 
@@ -18,7 +18,7 @@ Agents that use tree search achieve SOTA on tasks like:
 - Supports popular search algorithms: Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.
 - Uses function calling under the hood.
 - Customize the value function, prompts, search parameters, etc.
-- No LangChain or silly abstractions.
+- Supports 100+ LLMs (via LiteLLM).
 
 ![Demo](./assets/demo.png)
 
@@ -73,10 +73,9 @@ Below is a simple agent implementing Monte Carlo tree search (MCTS). It's equipp
 
 ```python
 from saplings.examples import MultiplicationTool
-from saplings.llms import OpenAI
-from saplings import MonteCarloAgent, Evaluator
+from saplings import MonteCarloAgent, Evaluator, Model
 
-model = OpenAI(model="gpt-4o", api_key="YOUR_API_KEY")
+model = Model(model="openai/gpt-4o") # Wraps LiteLLM
 evaluator = Evaluator(model)
 tools = [MultiplicationTool()]
 
@@ -139,19 +138,19 @@ There are additional things you can do with tools, such as accessing the agent's
 
 **Choosing a model:**
 
-First, you need to choose a model for the agent to use. Saplings only supports OpenAI models right now, but Anthropic and Groq are on the [roadmap](#roadmap).
+Saplings wraps LiteLLM to provide access to 100+ LLMs. Choose a model from their [list of supported providers](https://docs.litellm.ai/docs/providers) and create a `Model` object with it:
 
 ```python
-from saplings.llms import OpenAI
+from saplings import Model
 
-model = OpenAI(model="gpt-4o", api_key="YOUR_API_KEY") # Defaults to os.getenv("OPENAI_API_KEY") if empty
+model = Model("openai/gpt-4o")
 ```
 
-> Note: if you pass in additional `**kwargs`, they will get passed to all the chat completion calls made with this model.
+Note: any additional `kwargs` will be passed down to all the LiteLLM completion calls.
 
 **Setting up the evaluator:**
 
-This is what will guide the search process. The evaluator takes a search trajectory (i.e. a list of OpenAI messages) and returns a score between 0 and 1, indicating how promising the trajectory is. By default, a score of `1.0` means the agent has _solved_ the problem and can terminate the search. You can change the solution cutoff by setting the `threshold` parameter in the agent –– more on that [here](#parameters).
+This is what will guide the search process. The evaluator takes a search trajectory (i.e. a list of OpenAI-style messages) and returns a score between 0 and 1, indicating how promising the trajectory is. By default, a score of `1.0` means the agent has _solved_ the problem and can terminate the search. You can change the solution cutoff by setting the `threshold` parameter in the agent –– more on that [here](#parameters).
 
 ```python
 from saplings import Evaluator
@@ -228,7 +227,7 @@ This is a standard tool-calling agent and does not implement any search. It take
 
 [Messages](https://github.com/shobrook/saplings/blob/master/saplings/dtos/Message.py) are a core data structure in saplings. They are essentially equivalent to OpenAI messages (e.g. user input, tool calls, tool responses, assistant responses), with a few extra properties and helper methods. A list of messages represents a search trajectory. When you run an agent, it will return a list of messages representing the best trajectory it found.
 
-Saplings messages can be easily converted into OpenAI messages using the `to_openai_message()` method.
+Saplings messages can be easily converted into OpenAI-style messages using the `to_openai_message()` method.
 
 ```python
 messages, _, _ = agent.run("This is my prompt!")
@@ -313,10 +312,8 @@ Each agent has a `threshold` parameter, which determines the minimum score at wh
 ## Roadmap
 
 1. Support for chat history
-2. Support for Anthropic, Groq, and local models
-3. Allow dynamic system prompts and tool schemas (i.e. prompts that change as the agent progresses)
-4. Support for vision agents
-5. Add an `llm_call_budget` parameter to every agent
+2. Support for vision agents
+3. Add an `llm_call_budget` parameter to every agent
 
 In general, as inference gets cheaper and faster, it will become table stakes for agents to use search.
 

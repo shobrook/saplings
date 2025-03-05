@@ -5,22 +5,24 @@ from typing import List, Optional, Tuple
 
 # Local
 try:
-    from saplings.abstract import Tool, Model, Evaluator
+    from saplings.abstract import Tool, Evaluator
     from saplings.agents.Base import BaseAgent
     from saplings.dtos import Message, Node
     from saplings.prompts import AGENT_PROMPT
+    from saplings.model import Model
 except ImportError:
     from abstract import Tool, Model, Evaluator
     from agents.Base import BaseAgent
     from dtos import Message, Node
     from prompts import AGENT_PROMPT
+    from model import Model
 
 
 class AStarAgent(BaseAgent):
     def __init__(
         self,
         tools: List[Tool],
-        model: Optional[Model] = None,
+        model: Model,
         evaluator: Optional[Evaluator] = None,
         prompt: str = AGENT_PROMPT,
         b_factor: int = 3,

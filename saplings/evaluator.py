@@ -4,14 +4,12 @@ from typing import List, Optional
 
 # Local
 try:
-    from saplings.abstract import Model
     from saplings.dtos import Message, Evaluation
-    from saplings.llms import OpenAI
+    from saplings.model import Model
     from saplings.prompts import EVAL_PROMPT
 except ImportError:
-    from abstract import Model
     from dtos import Message, Evaluation
-    from llms import OpenAI
+    from model import Model
     from prompts import EVAL_PROMPT
 
 
@@ -22,7 +20,7 @@ class Evaluator(object):
         n_samples: int = 1,
         prompt: str = EVAL_PROMPT,
     ):
-        self.model = model if model else OpenAI()
+        self.model = model
         self.n_samples = n_samples
         self.prompt = prompt
         self.max_output_tokens = 1024

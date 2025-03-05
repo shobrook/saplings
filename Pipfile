@@ -4,9 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-openai = "*"
 json-repair = "*"
-tiktoken = "*"
+litellm = "*"
 
 [dev-packages]
 

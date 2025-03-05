@@ -3,14 +3,16 @@ from typing import List, Optional, Tuple
 
 # Local
 try:
+    from saplings.model import Model
     from saplings.agents.Base import BaseAgent
     from saplings.dtos import Message, Node
-    from saplings.abstract import Tool, Model, Evaluator
+    from saplings.abstract import Tool, Evaluator
     from saplings.prompts import AGENT_PROMPT
 except ImportError:
+    from model import Model
     from agents.Base import BaseAgent
     from dtos import Message, Node
-    from abstract import Tool, Model, Evaluator
+    from abstract import Tool, Evaluator
     from prompts import AGENT_PROMPT
 
 

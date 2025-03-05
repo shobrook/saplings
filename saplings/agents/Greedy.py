@@ -3,22 +3,24 @@ from typing import List, Optional, Tuple
 
 # Local
 try:
+    from saplings.model import Model
     from saplings.dtos import Node, Message
     from saplings.prompts import AGENT_PROMPT
     from saplings.agents.Base import BaseAgent
-    from saplings.abstract import Tool, Model, Evaluator
+    from saplings.abstract import Tool, Evaluator
 except ImportError:
+    from model import Model
     from dtos import Node, Message
     from prompts import AGENT_PROMPT
     from agents.Base import BaseAgent
-    from abstract import Tool, Model, Evaluator
+    from abstract import Tool, Evaluator
 
 
 class GreedyAgent(BaseAgent):
     def __init__(
         self,
         tools: List[Tool],
-        model: Optional[Model] = None,
+        model: Model,
         evaluator: Optional[Evaluator] = None,
         prompt: str = AGENT_PROMPT,
         b_factor: int = 3,

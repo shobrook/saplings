@@ -6,24 +6,24 @@ from typing import List, Optional
 
 # Local
 try:
-    from saplings.evaluator import Evaluator
-    from saplings.abstract import Model, Tool, Evaluator as BaseEvaluator
+    from saplings.model import Model
     from saplings.dtos import Message, Node
-    from saplings.llms import OpenAI
+    from saplings.evaluator import Evaluator
     from saplings.prompts import AGENT_PROMPT
+    from saplings.abstract import Tool, Evaluator as BaseEvaluator
 except ImportError:
-    from llms import OpenAI
+    from model import Model
     from dtos import Message, Node
     from evaluator import Evaluator
     from prompts import AGENT_PROMPT
-    from abstract import Model, Tool, Evaluator as BaseEvaluator
+    from abstract import Tool, Evaluator as BaseEvaluator
 
 
 class BaseAgent(object):
     def __init__(
         self,
         tools: List[Tool],
-        model: Optional[Model] = None,
+        model: Model,
         evaluator: Optional[BaseEvaluator] = None,
         prompt: str = AGENT_PROMPT,
         b_factor: int = 3,
@@ -35,7 +35,7 @@ class BaseAgent(object):
         update_prompt: Optional[callable] = None,
     ):
         self.tools = tools
-        self.model = model if model else OpenAI()
+        self.model = model
         self.evaluator = evaluator if evaluator else Evaluator(model)
         self.prompt = prompt  # Governs tool calls
         self.b_factor = b_factor  # Branching factor
