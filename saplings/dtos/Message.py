@@ -102,6 +102,8 @@ class Message(object):
                 return tool_calls_str.strip()
 
             return f'{bold}ASSISTANT OUTPUT:{reset} {grey}"{self.content}"{reset}'
+        elif self.role == "system":
+            return f'{bold}SYSTEM MESSAGE:{reset} {grey}"{self.content}"{reset}'
 
         return ""
 
