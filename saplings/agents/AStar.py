@@ -78,7 +78,9 @@ class AStarAgent(BaseAgent):
             last_item = None
             async for item in self.expand(curr_node, messages):
                 last_item = item
-                yield item
+
+                if not isinstance(item, list):
+                    yield item
             for child in last_item:
                 heapq.heappush(frontier, (-child.score, child))
         else:
