@@ -334,7 +334,12 @@ class BaseAgent(object):
         # Grow the tree
         node.add_children(children)
 
-        yield children
+    async def run_async(self, prompt: str, messages: list[Message] = []):
+        last_item = None
+        async for item in self.run_iter_async(prompt, messages):
+            last_item = item
+
+        return last_item
 
     def run(self, prompt: str, messages: List[Message] = [], **kwargs) -> any:
         loop = asyncio.new_event_loop()

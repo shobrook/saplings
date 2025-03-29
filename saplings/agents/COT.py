@@ -45,14 +45,14 @@ class COTAgent(BaseAgent):
     def should_terminate(self, node: Node) -> bool:
         return self.is_terminal_node(node)
 
-    async def run_async(
-        self, prompt: str, messages: List[Message] = []
-    ) -> List[Message]:
+    async def run_iter_async(self, prompt: str, messages: list[Message] = []):
         self.log(f"Running a ReAct sequence (no search)\n\n\033[37m{prompt}\033[0m\n")
 
         curr_node = Node([Message.user(prompt)])
         while not self.should_terminate(curr_node):
-            await self.expand(curr_node, messages, run_eval=False)
+            async for item in self.expand(curr_node, messages, run_eval=False):
+                yield item
+
             curr_node = curr_node.children[0]
 
         messages = curr_node.get_trajectory()
@@ -62,4 +62,4 @@ class COTAgent(BaseAgent):
             + "\n".join(str(m) for m in messages)
         )
 
-        return messages
+        yield messages

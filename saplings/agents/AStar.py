@@ -75,13 +75,9 @@ class AStarAgent(BaseAgent):
                 break
 
             # Expand the current node, add children to the frontier
-            last_item = None
             async for item in self.expand(curr_node, messages):
-                last_item = item
-
-                if not isinstance(item, list):
-                    yield item
-            for child in last_item:
+                yield item
+            for child in curr_node.children:
                 heapq.heappush(frontier, (-child.score, child))
         else:
             self.log(
@@ -101,10 +97,3 @@ class AStarAgent(BaseAgent):
         )
 
         yield (messages, score, is_solution)
-
-    async def run_async(self, prompt: str, messages: list[Message] = []):
-        last_item = None
-        async for item in self.run_iter_async(prompt, messages):
-            last_item = item
-
-        return last_item
