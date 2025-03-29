@@ -1,8 +1,9 @@
 # Standard library
 import asyncio
 import threading
-from collections import defaultdict
 from typing import List, Optional
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
 # Local
 try:
@@ -235,13 +236,15 @@ class BaseAgent(object):
         self, message: Message, trajectory: List[Message]
     ) -> Message:
         if not message.tool_calls:
-            return None
+            return None  # TODO: When would this be hit?
 
         fn_call = message.tool_calls[0]
         tool = self.get_tool_by_name(fn_call.name)
         output = await tool.run(**fn_call.arguments, trajectory=trajectory)
         formatted_output = tool.format_output(output)
         tool_response = Message.tool(formatted_output, fn_call.id, raw_output=output)
+        tool_response.parent_id = message.parent_id
+        tool_response.id = message.id
 
         return tool_response
 
@@ -266,12 +269,11 @@ class BaseAgent(object):
 
         return node
 
-    async def expand(
-        self, node: Node, messages: List[Message], run_eval=True
-    ) -> List[Node]:
+    async def expand(self, node: Node, messages: List[Message], run_eval=True):
         if self.is_terminal_node(node):
             self.log(f"\033[1;31mReached terminal node\033[0m\n\n{node}\n")
-            return []
+            yield []
+            return
 
         self.log(f"Expanding node\n\n{node}\n")
 
@@ -279,23 +281,49 @@ class BaseAgent(object):
         trajectory = messages + node.get_trajectory()
         self.update_prompts(trajectory)
 
+        # Create (partial) child nodes
+        children = []
+
         # Generate candidate next tool calls, execute each
         tool_calls = await self.generate_candidates(node, messages)
-        tasks = [
-            self.execute_tool_call(tool_call, trajectory) for tool_call in tool_calls
-        ]
-        tool_responses = await asyncio.gather(*tasks)
+        tasks = []
+        for tool_call in tool_calls:
+            partial_child = Node([tool_call], parent=node)
+            children.append(partial_child)
 
-        # Create child nodes
-        children = [
-            Node([call, response] if response else [call], parent=node)
-            for call, response in zip(tool_calls, tool_responses)
-        ]
+            tool_call.id = partial_child.id
+            tool_call.parent_id = (
+                partial_child.parent.id if partial_child.parent else None
+            )
+            yield tool_call
+
+            task = self.execute_tool_call(tool_call, trajectory)
+            tasks.append(task)
+
+        id_to_index = {child.id: i for i, child in enumerate(children)}
+
+        tool_responses = [None] * len(tasks)
+        for task in asyncio.as_completed(tasks):
+            tool_response = await task
+            if not tool_response:
+                continue
+
+            j = id_to_index[tool_response.id]
+            child = children[j]
+            child.messages.append(tool_response)
+            tool_responses[j] = tool_response
+
+            if not run_eval:
+                yield tool_response
 
         # Evaluate each child
         if run_eval:
             tasks = [self.evaluate(child, messages) for child in children]
-            await asyncio.gather(*tasks)
+            for result in asyncio.as_completed(tasks):
+                child = await result
+                tool_response = child.messages[-1]
+                tool_response.score = child.score
+                yield tool_response
 
         self.log(
             f"Generated {len(children)} children\n\n"
@@ -306,7 +334,12 @@ class BaseAgent(object):
         # Grow the tree
         node.add_children(children)
 
-        return children
+    async def run_async(self, prompt: str, messages: list[Message] = []):
+        last_item = None
+        async for item in self.run_iter_async(prompt, messages):
+            last_item = item
+
+        return last_item
 
     def run(self, prompt: str, messages: List[Message] = [], **kwargs) -> any:
         loop = asyncio.new_event_loop()
@@ -322,6 +355,27 @@ class BaseAgent(object):
         thread.start()
         thread.join()
         return result
+
+    def run_iter(self, prompt: str, messages: List[Message] = [], **kwargs) -> any:
+        async def run_async_wrapper():
+            async for item in self.run_iter_async(prompt, messages):
+                yield item
+
+        # Get an event loop and run the async generator
+        loop = asyncio.get_event_loop()
+        async_gen = run_async_wrapper()
+
+        try:
+            while True:
+                # Get the next item from the async generator
+                try:
+                    item = loop.run_until_complete(async_gen.__anext__())
+                    yield item
+                except StopAsyncIteration:
+                    break
+        finally:
+            # Clean up the async generator
+            loop.run_until_complete(async_gen.aclose())
 
     async def call_tool(self, tool_name: str, messages: List[Message] = []) -> Message:
         system_message = Message.system(self.prompt)

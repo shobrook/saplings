@@ -56,7 +56,7 @@ class MonteCarloAgent(BaseAgent):
 
         return False
 
-    async def generate_root_node(self, prompt: str, messages: List[Message]) -> Node:
+    async def generate_root_node(self, prompt: str, messages: List[Message]):
         """
         Generates the root node (i.e. the first tool call) in the
         search tree.
@@ -82,16 +82,26 @@ class MonteCarloAgent(BaseAgent):
         )
         tool_call = Message.from_openai_message(response)
 
+        # Initialize the Node
+        node = Node([Message.user(prompt), tool_call])
+
+        tool_call.id = node.id
+        yield tool_call
+
         # Execute the tool call
         tool_response = await self.execute_tool_call(
             tool_call, trajectory=[user_message]
         )
+        node.messages.append(tool_response)
 
         # Build and evaluate the root node
-        node = Node([Message.user(prompt), tool_call, tool_response])
         await self.evaluate(node)
 
-        return node
+        tool_response.id = node.id
+        tool_response.score = node.score
+
+        yield tool_response
+        yield node
 
     def has_non_terminal_leaves(self, root: Node) -> bool:
         leaf_nodes = root.get_leaf_nodes()
@@ -130,25 +140,27 @@ class MonteCarloAgent(BaseAgent):
 
         curr_node = node.get_best_child()
         while not self.is_terminal_node(curr_node):
-            await self.expand(curr_node, messages)
+            async for item in self.expand(curr_node, messages):
+                yield item
             curr_node = curr_node.get_best_child()
 
         self.log(f"\033[1;31mReached terminal node\033[0m\n\n{curr_node}\n")
 
         if self.is_solution_node(curr_node):
             curr_node.mark_as_solved()
-            return
+        else:
+            # curr_node.self_reflect() # TODO
+            curr_node.backpropagate()
 
-        # curr_node.self_reflect() # TODO
-        curr_node.backpropagate()
-
-    async def run_async(
-        self, prompt: str, messages: List[Message] = []
-    ) -> Tuple[List[Message], float, bool]:
+    async def run_iter_async(self, prompt: str, messages: list[Message] = []):
         self.log(f"Running a Monte Carlo tree search\n\n\033[37m{prompt}\033[0m\n")
 
+        root = None
+        async for item in self.generate_root_node(prompt, messages):
+            root = item
+            yield item
+
         num_rollouts = 0
-        root = await self.generate_root_node(prompt, messages)
         while not self.should_terminate(root, num_rollouts):
             node = self.select(root)
             if not node:  # All paths exhausted
@@ -156,8 +168,11 @@ class MonteCarloAgent(BaseAgent):
 
             self.log(f"STARTING ROLLOUT (rollout_id={num_rollouts})")
 
-            await self.expand(node, messages)
-            await self.simulate(node)
+            async for item in self.expand(node, messages):
+                yield item
+
+            async for item in self.simulate(node):
+                yield item
 
             self.log(f"FINISHED ROLLOUT (rollout_id={num_rollouts})")
 
@@ -182,4 +197,4 @@ class MonteCarloAgent(BaseAgent):
             + "\n".join(str(m) for m in messages)
         )
 
-        return messages, score, is_solution
+        yield (messages, score, is_solution)

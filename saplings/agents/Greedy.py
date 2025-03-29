@@ -48,14 +48,14 @@ class GreedyAgent(BaseAgent):
     def should_terminate(self, node: Node) -> bool:
         return self.is_terminal_node(node)
 
-    async def run_async(
-        self, prompt: str, messages: List[Message] = []
-    ) -> Tuple[List[Message], float, bool]:
+    async def run_iter_async(self, prompt: str, messages: list[Message] = []):
         self.log(f"Running a greedy best-first search\n\n\033[37m{prompt}\033[0m\n")
 
         best_node = Node([Message.user(prompt)])
         while not self.should_terminate(best_node):
-            await self.expand(best_node, messages)
+            async for item in self.expand(best_node, messages):
+                yield item
+
             best_node = self.get_best_node(best_node)
 
         messages, score, is_solution = (
@@ -69,4 +69,4 @@ class GreedyAgent(BaseAgent):
             + "\n".join(str(m) for m in messages)
         )
 
-        return messages, score, is_solution
+        yield (messages, score, is_solution)
