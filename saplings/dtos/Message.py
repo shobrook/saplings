@@ -28,6 +28,11 @@ class Message(object):
         # For tool messages (unformatted tool call output)
         self.raw_output = raw_output
 
+        # Set after initialization
+        self.score = None
+        self.parent_id = None
+        self.id = None
+
     @classmethod
     def system(cls, content):
         return Message("system", content)

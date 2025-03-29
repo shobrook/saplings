@@ -50,9 +50,7 @@ class AStarAgent(BaseAgent):
     def should_terminate(self, node: Node) -> bool:
         return self.is_solution_node(node)
 
-    async def run_async(
-        self, prompt: str, messages: List[Message] = []
-    ) -> Tuple[List[Message], float, bool]:
+    async def run_iter_async(self, prompt: str, messages: List[Message] = []):
         # Max priority queue
         root_node = Node([Message.user(prompt)])
         best_score = -inf  # Negative scores for max behavior
@@ -77,8 +75,11 @@ class AStarAgent(BaseAgent):
                 break
 
             # Expand the current node, add children to the frontier
-            children = await self.expand(curr_node, messages)
-            for child in children:
+            last_item = None
+            async for item in self.expand(curr_node, messages):
+                last_item = item
+                yield item
+            for child in last_item:
                 heapq.heappush(frontier, (-child.score, child))
         else:
             self.log(
@@ -97,4 +98,11 @@ class AStarAgent(BaseAgent):
             + "\n".join(str(m) for m in messages)
         )
 
-        return messages, score, is_solution
+        yield (messages, score, is_solution)
+
+    async def run_async(self, prompt: str, messages: list[Message] = []):
+        last_item = None
+        async for item in self.run_iter_async(prompt, messages):
+            last_item = item
+
+        return last_item
