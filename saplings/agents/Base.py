@@ -377,7 +377,9 @@ class BaseAgent(object):
             # Clean up the async generator
             loop.run_until_complete(async_gen.aclose())
 
-    async def call_tool(self, tool_name: str, messages: List[Message] = []) -> Message:
+    async def call_tool_async(
+        self, tool_name: str, messages: List[Message] = []
+    ) -> Message:
         system_message = Message.system(self.prompt)
         headroom = (
             self.model.count_message_tokens(system_message) + self.max_tool_call_tokens
@@ -396,7 +398,37 @@ class BaseAgent(object):
         )
         return Message.from_openai_message(response)
 
-    async def run_tool(
+    async def run_tool_async(
         self, tool_call: Message, messages: List[Message] = []
     ) -> Message:
         return await self.execute_tool_call(tool_call, messages)
+
+    def call_tool(self, tool_name: str, messages: List[Message] = []) -> Message:
+        loop = asyncio.new_event_loop()
+        result = None
+
+        def _run():
+            nonlocal result
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self.call_tool(tool_name, messages))
+            loop.close()
+
+        thread = threading.Thread(target=_run)
+        thread.start()
+        thread.join()
+        return result
+
+    def run_tool(self, tool_call: Message, messages: List[Message] = []) -> Message:
+        loop = asyncio.new_event_loop()
+        result = None
+
+        def _run():
+            nonlocal result
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(self.run_tool(tool_call, messages))
+            loop.close()
+
+        thread = threading.Thread(target=_run)
+        thread.start()
+        thread.join()
+        return result
