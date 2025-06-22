@@ -410,8 +410,20 @@ class BaseAgent(object):
         def _run():
             nonlocal result
             asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(self.call_tool(tool_name, messages))
-            loop.close()
+            try:
+                result = loop.run_until_complete(
+                    self.call_tool_async(tool_name, messages)
+                )
+            finally:
+                # Clean up pending tasks before closing
+                pending = asyncio.all_tasks(loop)
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
+                loop.close()
 
         thread = threading.Thread(target=_run)
         thread.start()
@@ -425,8 +437,20 @@ class BaseAgent(object):
         def _run():
             nonlocal result
             asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(self.run_tool(tool_call, messages))
-            loop.close()
+            try:
+                result = loop.run_until_complete(
+                    self.run_tool_async(tool_call, messages)
+                )
+            finally:
+                # Clean up pending tasks before closing
+                pending = asyncio.all_tasks(loop)
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
+                loop.close()
 
         thread = threading.Thread(target=_run)
         thread.start()
