@@ -1,6 +1,6 @@
 # 🌳 Saplings
 
-**Tree search for your agent in two lines of code.**
+**Add tree search to your agent in two lines of code.**
 
 <!--**Build agents that can see the future.**-->
 
