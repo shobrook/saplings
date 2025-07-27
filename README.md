@@ -1,32 +1,39 @@
 # 🌳 Saplings
 
-**Saplings lets you build agents that reason using tree search.**
+**Tree search for your agent in two lines of code.**
 
-Think of this as _tree-of-thoughts_ meets _tool use._ With tree search, an agent can explore and evaluate different tool-use trajectories before choosing the optimal path. This ability to look multiple steps ahead and backtrack reduces mistakes and boosts reasoning compared to traditional CoT/ReAct-style agents.
+<!--**Build agents that can see the future.**-->
 
-Agents that use tree search achieve SOTA on tasks like:
+Most agents call tools on a loop: run a tool, observe the result, then pick the next one. But if they make a mistake early, it can snowball and ruin the final output. Since these agents can't look ahead or backtrack, one bad call can derail the whole loop.
 
-- **Coding:** [92.7% on HumanEval](https://arxiv.org/pdf/2310.04406) using MCTS
-- **Q&A/RAG:** [63% on HotPotQA](https://arxiv.org/pdf/2310.04406) using MCTS
-- **Web Navigation:** [26.4% on VisualWebArena](https://arxiv.org/pdf/2407.01476) using A\*
-
-<!--TODO: Show the before and after tree search scores on the tasks listed above-->
-
-**Features:**
-
-- Plug-and-play. Build a smarter agent with just a couple lines of code.
-- Supports popular search algorithms: Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search.
-- Uses function calling under the hood.
-- Customize the value function, prompts, search parameters, etc.
-- Supports 100+ LLMs (via LiteLLM).
+Saplings fixes this by adding tree search. Agents can explore and evaluate tool-use trajectories to find the best one. Think of it like Stockfish for your agent. They can look multiple steps ahead, compare outcomes, and choose the optimal path.
 
 ![Demo](./assets/demo.png)
 
-<!--Traditional agents fail because they can't recover from mistakes. Even a small error early in the loop can snowball and ruin the final output.-->
+<!--TODO: Show an animation of deep research using tree search side-by-side with regular deep research-->
+
+**Benchmarks:**
+
+| Category       | Benchmark | ReAct | ReAct + tree search |
+| -------------- | --------- | ----- | ------------------- |
+| Q\&A / RAG     | HotpotQA  | 32.0% | **71.0%**           |
+| Programming    | HumanEval | 56.9% | **83.8%**           |
+| Programming    | MBPP      | 67.0% | **81.1%**           |
+| Web Navigation | WebShop   | 53.8% | **75.9%**           |
+
+[_**Source:** Language Agent Tree Search Unifies Reasoning, Acting, and Planning in Language Models_](https://arxiv.org/pdf/2310.04406)
+
+**Features:**
+
+- **Two lines of code** to add search to your agent
+- Supports popular search algorithms: Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search
+- Uses OpenAI/Anthropic-style tool-calling under the hood
+- Customize the value function, prompts, search parameters, etc.
+- Supports local models
 
 <!--TODO: Build a simple visualizer like this: https://www.llm-reasoners.net/visualizer/709cb8d3-f6da-49be-b705-549fbfc44bf9?accessKey=b5681f71 -->
 
----
+--
 
 - [Installation](#installation)
 - [Quickstart](#quickstart)
