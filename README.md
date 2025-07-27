@@ -12,7 +12,9 @@ Saplings fixes this by adding tree search. Agents can explore and evaluate tool-
 
 <!--TODO: Show an animation of deep research using tree search side-by-side with regular deep research-->
 
-**Benchmarks:**
+### Benchmarks
+
+Saplings agents beat traditional ReAct-style agents across the board on a variety of benchmarks:
 
 | Category       | Benchmark | ReAct | ReAct + tree search |
 | -------------- | --------- | ----- | ------------------- |
@@ -21,19 +23,19 @@ Saplings fixes this by adding tree search. Agents can explore and evaluate tool-
 | Programming    | MBPP      | 67.0% | **81.1%**           |
 | Web Navigation | WebShop   | 53.8% | **75.9%**           |
 
-[_**Source:** Language Agent Tree Search Unifies Reasoning, Acting, and Planning in Language Models_](https://arxiv.org/pdf/2310.04406)
+Source: [_Language Agent Tree Search Unifies Reasoning, Acting, and Planning in Language Models (ICML 2024)_](https://arxiv.org/pdf/2310.04406)
 
-**Features:**
+### Features
 
 - **Two lines of code** to add search to your agent
 - Supports popular search algorithms: Monte Carlo Tree Search (MCTS), A\*, and greedy best-first search
 - Uses OpenAI/Anthropic-style tool-calling under the hood
 - Customize the value function, prompts, search parameters, etc.
-- Supports local models
+- Supports 100+ LLMs, including local models
 
 <!--TODO: Build a simple visualizer like this: https://www.llm-reasoners.net/visualizer/709cb8d3-f6da-49be-b705-549fbfc44bf9?accessKey=b5681f71 -->
 
---
+----
 
 - [Installation](#installation)
 - [Quickstart](#quickstart)
